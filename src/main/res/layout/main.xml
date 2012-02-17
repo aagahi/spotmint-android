@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<AbsoluteLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent">
+
+    <com.google.android.maps.MapView
+            android:id="@+id/mapview"
+            android:layout_y="0px"
+            android:layout_x="0px"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:enabled="true"
+            android:clickable="true"
+            android:apiKey="0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ"
+            />
+
+    <RelativeLayout
+            android:layout_width="fill_parent"
+            android:layout_height="40px"
+
+            android:background="@drawable/header"
+            android:layout_y="0px"
+            android:layout_x="0px"
+            >
+        
+        <Button android:id="@+id/traceButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+
+                android:hapticFeedbackEnabled="true"
+
+                android:textColor="@drawable/button_text_color_selector"
+                android:drawableRight="@drawable/trace_selector"
+
+                android:background="#00000000"
+                android:shadowRadius="0.5"
+                android:shadowDx="0.5"
+                android:shadowDy="0.5"
+                android:shadowColor="#000"
+
+                android:padding="10px"
+
+           />
+        
+
+        <Button android:id="@+id/channelButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:gravity="bottom"
+
+                android:hapticFeedbackEnabled="true"
+
+                android:text="#sparta"
+                android:background="#00000000"
+                android:textColor="#fff"
+                android:shadowRadius="0.5"
+                android:shadowDx="0.5"
+                android:shadowDy="0.5"
+                android:shadowColor="#000"
+
+                android:padding="10px"
+                >
+        </Button>
+
+
+        <Button android:id="@+id/profilesButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_alignParentRight="true"
+
+                android:hapticFeedbackEnabled="true"
+                android:gravity="bottom"
+
+                android:text="1"
+                android:background="#00000000"
+                android:textColor="@drawable/button_text_color_selector"
+                android:drawableRight="@drawable/users_selector"
+
+                android:shadowRadius="0.5"
+                android:shadowDx="0.5"
+                android:shadowDy="0.5"
+                android:shadowColor="#000"
+
+                android:padding="10px"
+                >
+
+        </Button>
+    </RelativeLayout>
+
+</AbsoluteLayout>
