@@ -28,6 +28,7 @@ class MainActivity extends MapActivity with TypedActivity {
   lazy val receiver = new BroadcastReceiver(){
     def onReceive( context:Context, intent:Intent ){
 
+
       val extra = intent.getSerializableExtra(MainService.WS_EXTRA)
       intent.getAction() match {
         case MainService.WS_MESSAGE =>
@@ -176,6 +177,20 @@ class MainActivity extends MapActivity with TypedActivity {
     inflater.inflate(R.menu.menu, menu )
     true
   }
+
+  override def onOptionsItemSelected( item:MenuItem ) =
+  {
+    item.getItemId() match {
+      case R.id.menu_about =>
+        true
+      case R.id.menu_profile =>
+        true
+
+      case _ => false
+    }
+
+  }
+
 
   // ------------------------------------------------------------
   // Peers Adapter

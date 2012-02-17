@@ -17,13 +17,14 @@ object General {
     version := "0.1",
     versionCode := 0,
     scalaVersion := "2.8.2",
+    scalacOptions := Seq("-deprecation", "-encoding", "utf8"),
     platformName in Android := "android-7",
     resolvers ++= resolutionRepos
-
   )
 
   val proguardSettings = Seq (
-    useProguard in Android := false
+    useProguard in Android := false,
+    proguardOption in Android := "-dontoptimize"
   )
 
   lazy val fullAndroidSettings =
@@ -36,7 +37,6 @@ object General {
       keyalias in Android := "spotmint",
       libraryDependencies ++= Seq(
         "ws.nexus"                    %% "websocket-client"   % "0.1",
-        "org.scalatest"               %% "scalatest"          % "1.7.RC1"       % "test",
         "com.google.android.maps"     % "maps"                % "7_r1"          % "provided"
   )
     )
@@ -48,15 +48,5 @@ object AndroidBuild extends Build {
     file("."),
     settings = General.fullAndroidSettings
   )
-  //override def skipProguard = true
 
-  lazy val tests = Project (
-    "tests",
-    file("tests"),
-    settings = General.settings ++
-               AndroidTest.settings ++
-               General.proguardSettings ++ Seq (
-      name := "SpotMintTests"
-    )
-  ) dependsOn main
 }

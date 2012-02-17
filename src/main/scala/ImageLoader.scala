@@ -69,7 +69,7 @@ object ImageLoader {
 
         val bitmap = bitmapCache.find( _._1 == handler.url ) match {
           case Some( tuple ) =>
-            bitmapCache -= tuple
+            bitmapCache = bitmapCache.filterNot( _ == tuple )
             Some( tuple._2 )
           case _ =>
             loadBitmap( handler )

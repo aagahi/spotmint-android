@@ -11,8 +11,7 @@ import android.location.{Location, LocationListener, LocationManager}
 import android.os.{Bundle, Binder}
 import java.io.Serializable
 import java.net.{URI}
-
-
+import util.Random
 
 
 object MainService {
@@ -48,7 +47,7 @@ class MainService extends Service {
   // ------------------------------------------------------------
   private def loadUser( coord:Coordinate ):User = {
     User( User.SELF_USER_ID,
-      sharedPreferences.getString( PREFS_USER_NAME, "Anonymous" ),
+      sharedPreferences.getString( PREFS_USER_NAME, "Anonymous-" + (100 + Random.nextInt(899)) ),
       sharedPreferences.getString( PREFS_USER_EMAIL, "" ),
       sharedPreferences.getString( PREFS_USER_STATUS, "available" ),
       coord, true )
@@ -178,8 +177,7 @@ class MainService extends Service {
 
 
   lazy val binder = new LocalBinder( this )
-  override def onBind( intent: Intent) = {
-    binder
-  }
+  override def onBind( intent: Intent) = binder
+
 
 }
