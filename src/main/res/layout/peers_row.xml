@@ -33,10 +33,7 @@
             android:textColor="#fff"
             android:textSize="12sp"
 
-            android:shadowRadius="0.5"
-            android:shadowDx="0.5"
-            android:shadowDy="0.5"
-            android:shadowColor="#000"
+            style="@style/small_black_shadow"
 
             />
     <TextView
@@ -51,10 +48,7 @@
             android:textSize="10sp"
             android:textStyle="italic"
 
-            android:shadowRadius="0.5"
-            android:shadowDx="0.5"
-            android:shadowDy="0.5"
-            android:shadowColor="#000"
+            style="@style/small_black_shadow"
 
             />
     </LinearLayout>

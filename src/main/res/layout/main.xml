@@ -35,10 +35,6 @@
                 android:drawableRight="@drawable/trace_selector"
 
                 android:background="#00000000"
-                android:shadowRadius="0.5"
-                android:shadowDx="0.5"
-                android:shadowDy="0.5"
-                android:shadowColor="#000"
 
                 android:padding="10px"
 
@@ -56,12 +52,10 @@
                 android:text="#sparta"
                 android:background="#00000000"
                 android:textColor="#fff"
-                android:shadowRadius="0.5"
-                android:shadowDx="0.5"
-                android:shadowDy="0.5"
-                android:shadowColor="#000"
 
                 android:padding="10px"
+
+                style="@style/small_black_shadow"
                 >
         </Button>
 
@@ -80,10 +74,7 @@
                 android:textColor="@drawable/button_text_color_selector"
                 android:drawableRight="@drawable/users_selector"
 
-                android:shadowRadius="0.5"
-                android:shadowDx="0.5"
-                android:shadowDy="0.5"
-                android:shadowColor="#000"
+                style="@style/small_black_shadow"
 
                 android:padding="10px"
                 >

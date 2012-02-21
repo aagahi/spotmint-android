@@ -35,7 +35,6 @@ object MainService {
 class MainService extends Service {
   import MainService._
 
-  
   var currentChannel = DEFAULT_CHANNEL_NAME
 
   var currentCoord:Coordinate = _

@@ -83,6 +83,7 @@ class MainActivity extends MapActivity with TypedActivity {
     updateMap()
   }
 
+
   private def removeMarker( id:Int ){
     overlay.removeUserById( id )
 
