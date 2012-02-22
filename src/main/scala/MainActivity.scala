@@ -12,10 +12,10 @@ import android.util.{AttributeSet, Log}
 import android.view.GestureDetector.{OnGestureListener, OnDoubleTapListener}
 import android.widget._
 import android.widget.TextView.OnEditorActionListener
-import inputmethod.EditorInfo
 import android.view.View.{OnFocusChangeListener, OnClickListener}
 
 import android.graphics.drawable.BitmapDrawable
+import inputmethod.{InputMethodManager, EditorInfo}
 
 
 class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
@@ -55,6 +55,8 @@ class MainActivity extends MapActivity with TypedActivity {
 
 
       val extra = intent.getSerializableExtra(MainService.WS_EXTRA)
+      
+      Log.v( "SpotMint", "Extra %s / Action %s" format ( extra.toString, intent.getAction ))
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
@@ -73,15 +75,17 @@ class MainActivity extends MapActivity with TypedActivity {
 
             case _ =>
           }
+        case MainService.USER_MESSAGE =>
+          val user = extra.asInstanceOf[User]
+          currentUser = Some(user)
+          addMarker( user )
+
+        case MainService.CHANNEL_MESSAGE =>
+          findView(TR.channel_button).setText( "#"+extra.asInstanceOf[String] )
 
         case MainService.LOCATION_MESSAGE =>
-          extra match {
-            case user:User =>
-              currentUser = Some(user)
-              addMarker( user )
-            case coord:Coordinate =>
-              updateMarker( overlay.userById( User.SELF_USER_ID ).map( _.update( coord ) ) )
-          }
+          val coord = extra.asInstanceOf[Coordinate]
+          updateMarker( overlay.userById( User.SELF_USER_ID ).map( _.update( coord ) ) )
 
       }
     }
@@ -117,6 +121,13 @@ class MainActivity extends MapActivity with TypedActivity {
     updateMap()
   }
 
+  private def removePeersMarker(){
+    overlay.removePeers()
+    findView(TR.peers_button).setText( "1" )
+    reloadPeersViewAdapter()
+    updateMap()
+  }
+
 
   private def removeMarker( id:Int ){
     overlay.removeUserById( id )
@@ -149,6 +160,16 @@ class MainActivity extends MapActivity with TypedActivity {
 
     setContentView(R.layout.main)
 
+
+    registerReceiver( receiver, new IntentFilter( MainService.WS_MESSAGE ) )
+    registerReceiver( receiver, new IntentFilter( MainService.LOCATION_MESSAGE ) )
+    registerReceiver( receiver, new IntentFilter( MainService.USER_MESSAGE ) )
+    registerReceiver( receiver, new IntentFilter( MainService.CHANNEL_MESSAGE ) )
+
+    val serviceIntent = new Intent( context, classOf[MainService] )
+    startService( serviceIntent )
+
+
     mapView = findView(TR.mapview)
     mapView.setBuiltInZoomControls( true )
     mapView.setStreetView(true)
@@ -165,17 +186,57 @@ class MainActivity extends MapActivity with TypedActivity {
     mapController = mapView.getController
     mapController.setZoom(14)
 
-    registerReceiver( receiver, new IntentFilter( MainService.WS_MESSAGE ) )
-    registerReceiver( receiver, new IntentFilter( MainService.LOCATION_MESSAGE ) )
-
-    val serviceIntent = new Intent( context, classOf[MainService] )
-    startService( serviceIntent )
 
 
     // Trace Button ------------------------------------
     val traceButton = findView(TR.trace_button)
     traceButton.setOnClickListener( new View.OnClickListener{
       def onClick( v:View ){
+      }
+    })
+
+    // Channel Button ------------------------------------
+    val channelButton = findView(TR.channel_button)
+    channelButton.setOnClickListener( new View.OnClickListener{
+      
+      def onClick( v:View ){
+        val channelView = context.getLayoutInflater.inflate( R.layout.channel, null ).asInstanceOf[ViewGroup]
+        val v = TypedResource.view2typed( channelView )
+
+        val pw = new PopupWindow( channelView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true )
+        pw.setBackgroundDrawable(new BitmapDrawable())
+        pw.setOutsideTouchable(true)
+        pw.setAnimationStyle( android.R.style.Animation_Dialog )
+        pw.showAtLocation( mapView, Gravity.CENTER_HORIZONTAL|Gravity.TOP, 0, 100 )
+
+        val editViewChannelName = v.findView(TR.channel_name)
+        editViewChannelName.setText( channelButton.getText.toString.substring( 1 ) )
+        editViewChannelName.requestFocusFromTouch()
+
+        def updateChannel(){
+          val name = editViewChannelName.getText.toString
+          channelButton.setText( "#"+ name )
+          removePeersMarker()
+          sendToService( SubscribChannel( name ))
+          pw.dismiss()
+        }
+
+        editViewChannelName.setOnEditorActionListener( new OnEditorActionListener(){
+          def onEditorAction( textView: TextView, actionId: Int, e: KeyEvent) = {
+            if( actionId == EditorInfo.IME_ACTION_DONE ){ updateChannel(); true }
+            else false
+          }
+        })
+
+        v.findView(TR.channel_clean_button).setOnClickListener( new View.OnClickListener{
+          def onClick( view:View ){ editViewChannelName.setText( "" ); true }
+        })
+
+        v.findView(TR.channel_update_button).setOnClickListener( new View.OnClickListener{
+          def onClick( view:View ){ updateChannel(); true }
+        })
+
+
       }
     })
 
@@ -271,15 +332,17 @@ class MainActivity extends MapActivity with TypedActivity {
 
         val emailView = v.findView(TR.profile_email)
         emailView.setOnFocusChangeListener( new OnFocusChangeListener{
-          def onFocusChange( view: View, hasFocus: Boolean) { Log.v("SpotMint", "===>" + hasFocus ); if( !hasFocus ) loadImage( emailView.getText.toString ) }
+          def onFocusChange( view: View, hasFocus: Boolean) { if( !hasFocus ) loadImage( emailView.getText.toString ) }
         })
 
+        val editViewName = v.findView(TR.profile_name)
         currentUser.foreach{ user =>
-          v.findView(TR.profile_name).setText( user.name )
+          editViewName.setText( user.name )
           v.findView(TR.profile_status).setText( user.status )
           emailView.setText( user.email )
           loadImage( user.email )
         }
+        editViewName.requestFocusFromTouch()
 
         v.findView(TR.profile_status).setOnEditorActionListener( new OnEditorActionListener(){
           def onEditorAction( textView: TextView, actionId: Int, e: KeyEvent) = {

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+
+            android:gravity="center_horizontal"
+
+            android:background="@drawable/rounded_border"
+            android:padding="10dip"
+        >
+
+
+    <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+
+    >
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:background="#00000000"
+
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
+
+                android:text="#"
+                android:textStyle="bold"
+                android:textColor="#fff"
+                android:textSize="16dip"
+
+                style="@style/small_black_shadow"
+
+                />
+
+        <EditText android:id="@+id/channel_name"
+                  android:layout_width="180dip"
+                  android:layout_height="wrap_content"
+
+                  android:inputType="text"
+
+                  android:hint="@string/channel_name"
+
+                  android:layout_marginLeft="2dip"
+
+                  android:singleLine="true"
+
+                  style="@style/text_edit_field"
+                />
+
+
+        <FrameLayout
+                android:id="@+id/channel_clean_button"
+                android:layout_width="24dip"
+                android:layout_height="24dip"
+                android:layout_marginLeft="2dip"
+        >
+
+            <ImageView
+                    android:layout_width="16dip"
+                    android:layout_height="16dip"
+                    android:layout_gravity="center_vertical"
+
+                    android:layout_marginTop="2dip"
+                    android:src="@drawable/clear_button"
+                />
+        </FrameLayout>
+
+
+    </LinearLayout>
+
+    <Button android:id="@+id/channel_update_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            style="@style/black_button"
+
+            android:text="@string/update_button" />
+
+</LinearLayout>

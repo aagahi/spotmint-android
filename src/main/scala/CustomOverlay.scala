@@ -18,6 +18,8 @@ class CustomOverlay extends Overlay {
   }
   def userById( id:Int ) = users.find( _.id == id )
 
+  def removePeers() { users = users.filter( _.id == User.SELF_USER_ID ) }
+
   def removeUserById( id:Int ){
     users = users.filterNot( _.id == id )
     userIdBitmap = userIdBitmap - id

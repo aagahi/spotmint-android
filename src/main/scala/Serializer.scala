@@ -9,7 +9,7 @@ object Serializer {
       case PublisherUpdate( data ) => """{"PublisherUpdate":{"data":{"profile":{"name":"%s","email":"%s","status":"%s"}}}}""" format( data.name, data.email, data.status )
       case CreateChannel() => """{"CreateChannel":{}}"""
       case SubscribChannel( channel ) => """{"SubscribChannel":{"channel":"%s"}}""" format ( channel )
-      case UnsubscribChannel(channel) => """{"SubscribChannel":{"channel":"%s"}}""" format ( channel )
+      case UnsubscribChannel(channel) => """{"UnsubscribChannel":{"channel":"%s"}}""" format ( channel )
       case Publish(channel, data) => """{"Publish":{"channel":"%s","data":{"coord":{"lat":%f,"lng":%f,"acc":%f}}}}""" format ( channel, data.lat, data.lng, data.acc )
       //case PublishTo(channel, pubIds, data) => ""
     }

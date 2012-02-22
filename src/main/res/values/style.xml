@@ -11,8 +11,8 @@
 
     <style name="text_edit_field">
         <item name="android:background">@drawable/rounded_border</item>
-        <item name="android:textColor">#fff</item>
-        <item name="android:textSize">18dip</item>
+        <item name="android:textColor">#eee</item>
+        <item name="android:textSize">16dip</item>
         <item name="android:layout_marginBottom">8dip</item>
     </style>
 

@@ -7,6 +7,11 @@
     <string name="profile_name">Name</string>
     <string name="profile_email">Email</string>
     <string name="profile_status">Status</string>
-    <string name="profile_update">Update</string>
+
+    <string name="channel_name">channel</string>
+
+    <string name="update_button">Update</string>
+    <string name="clear_button">Clear</string>
+
 
 </resources>

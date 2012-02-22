@@ -17,10 +17,12 @@ import util.Random
 object MainService {
   final val LOCATION_MESSAGE = "MainService.LOCATION_MESSAGE"
   final val WS_MESSAGE = "MainService.WS_MESSAGE"
+  final val USER_MESSAGE = "MainService.USER_MESSAGE"
+  final val CHANNEL_MESSAGE = "MainService.CHANNEL_MESSAGE"
 
   final val WS_EXTRA = "extra"
 
-  final val DEFAULT_CHANNEL_NAME = "sparta"
+  final val DEFAULT_CHANNEL_NAME = "tap to change"
 
   final val PREFS_CHANNEL_NAME = "channel"
 
@@ -35,14 +37,14 @@ object MainService {
 class MainService extends Service {
   import MainService._
 
-  var currentChannel = DEFAULT_CHANNEL_NAME
 
   var currentCoord:Coordinate = _
 
   lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )
+  var currentChannel = DEFAULT_CHANNEL_NAME
 
   // ------------------------------------------------------------
-  // Profile persistence
+  // Pref persistence
   // ------------------------------------------------------------
   private def loadUser( coord:Coordinate ):User = {
     User( User.SELF_USER_ID,
@@ -58,7 +60,12 @@ class MainService extends Service {
     editor.putString( PREFS_USER_STATUS, user.status )
     editor.commit()
   }
-
+  private def saveChannel() {
+    val editor = sharedPreferences.edit()
+    editor.putString( PREFS_CHANNEL_NAME, currentChannel )
+    editor.commit()
+    Log.v( "SpotMint", "Save Ch " + currentChannel )
+  }
 
   // ------------------------------------------------------------
   // WS Client
@@ -93,7 +100,7 @@ class MainService extends Service {
     currentCoord = Coordinate( lastKnownLocation )
 
     val currentUser = loadUser( currentCoord )
-    broadcast( LOCATION_MESSAGE, currentUser )
+    broadcast( USER_MESSAGE, currentUser )
 
     client.send( PublisherUpdate( currentUser.toPublisher ) )
     client.send( SubscribChannel( currentChannel ) )
@@ -126,6 +133,7 @@ class MainService extends Service {
   // Broadcast MGMT
   // ------------------------------------------------------------
   private def broadcast( messageType:String, message:Serializable ){
+    Log.v("SpotMint", "Broadcast %s => %s" format ( messageType, message.toString ) )
     val broadCastIntent = new Intent( messageType )
     broadCastIntent.putExtra( WS_EXTRA, message )
     sendBroadcast( broadCastIntent )
@@ -139,16 +147,22 @@ class MainService extends Service {
     intent.getAction match {
 
       case MainService.WS_MESSAGE =>
-
         val msg = intent.getSerializableExtra( WS_EXTRA ).asInstanceOf[WSUpMessage]
-        client.send( msg )
-
         msg match {
-          case publisherUpdate:PublisherUpdate => saveUser( User( publisherUpdate.data ) )
+          case PublisherUpdate( publisher )=> saveUser( User( publisher ) )
+          case SubscribChannel( channel ) =>
+            client.send( UnsubscribChannel( currentChannel ) )
+            currentChannel = channel
+            saveChannel()
+            
           case _ =>
         }
+        
+        client.send( msg )
 
       case _ =>
+        broadcast( CHANNEL_MESSAGE, currentChannel )
+
     }
 
     Service.START_STICKY
@@ -158,7 +172,6 @@ class MainService extends Service {
   
   override def onCreate(){
     super.onCreate()
-
     currentChannel = sharedPreferences.getString( PREFS_CHANNEL_NAME, DEFAULT_CHANNEL_NAME )
     startLocation()
 
@@ -166,10 +179,6 @@ class MainService extends Service {
 
   
   override def onDestroy(){
-    val editor = sharedPreferences.edit()
-    editor.putString( PREFS_CHANNEL_NAME, currentChannel )
-    editor.commit()
-
     client.close()
   }
 

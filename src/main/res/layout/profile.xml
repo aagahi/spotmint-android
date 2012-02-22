@@ -64,7 +64,7 @@
 
 
 
-               android:background="#f44"
+               android:background="@drawable/avatar"
                />
 
     <Button android:id="@+id/profile_update_button"
@@ -75,6 +75,6 @@
 
             style="@style/black_button"
 
-            android:text="@string/profile_update" />
+            android:text="@string/update_button" />
 
 </RelativeLayout>
