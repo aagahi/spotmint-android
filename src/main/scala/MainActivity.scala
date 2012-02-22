@@ -6,15 +6,19 @@ import _root_.com.google.android.maps._
 import android.content._
 import android.os.Bundle
 import android.graphics.Color
-import android.widget.{PopupWindow, ArrayAdapter, ListView}
 import android.view._
-import android.view.View.OnClickListener
 import com.google.android.maps.MapView
 import android.util.{AttributeSet, Log}
 import android.view.GestureDetector.{OnGestureListener, OnDoubleTapListener}
+import android.widget._
+import android.widget.TextView.OnEditorActionListener
+import inputmethod.EditorInfo
+import android.view.View.{OnFocusChangeListener, OnClickListener}
+
+import android.graphics.drawable.BitmapDrawable
 
 
-class DoubleTabMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
+class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
   
   val gestureDetector = new GestureDetector( new OnGestureListener{
     def onDown(e: MotionEvent) = false
@@ -35,10 +39,12 @@ class MainActivity extends MapActivity with TypedActivity {
   import Coordinate.coordinateToGeoPoint
   implicit val context = this
 
-  var mapView:DoubleTabMapView = _
+  var mapView:GestureMapView = _
   var mapController:MapController = _
   val overlay = new CustomOverlay
 
+  var currentUser:Option[User] = None
+  
   var peersView:ListView = _
 
   // ------------------------------------------------------------
@@ -52,20 +58,29 @@ class MainActivity extends MapActivity with TypedActivity {
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
-            case subscribChannel:SubscribedChannel =>
-              val publisher = subscribChannel.data
-              addMarker( new User( subscribChannel.pubId, publisher.name, publisher.email, publisher.status ) )
-            case unsubscribChannel:UnsubscribedChannel =>
-              removeMarker( unsubscribChannel.pubId )
-            case published:Published =>
-              updateMarkerCoordById( published.pubId, published.data )
+            case SubscribedChannel( channel, pubId, publisher) =>
+              addMarker( new User( pubId, publisher.name, publisher.email, publisher.status ) )
+
+            case UnsubscribedChannel( _, pubId) =>
+              removeMarker( pubId )
+
+            case Published( _, pubId, data ) =>
+              updateMarker( overlay.userById( pubId ).map( _.update( data ) ) )
+
+            case PublisherUpdated( _, pubId, data) =>
+              updateMarker( overlay.userById( pubId ).map( _.update( data ) ) )
+              reloadPeersViewAdapter()
+
             case _ =>
           }
 
         case MainService.LOCATION_MESSAGE =>
           extra match {
-            case user:User => addMarker( user )
-            case coord:Coordinate => updateMarkerCoordById( User.SELF_USER_ID, coord )
+            case user:User =>
+              currentUser = Some(user)
+              addMarker( user )
+            case coord:Coordinate =>
+              updateMarker( overlay.userById( User.SELF_USER_ID ).map( _.update( coord ) ) )
           }
 
       }
@@ -93,9 +108,9 @@ class MainActivity extends MapActivity with TypedActivity {
   private def addMarker( user:User ){
     overlay.addUser(user)
 
-    if( peersView != null ) peersView.setAdapter( new PeersAdapter( R.layout.peers_row, overlay.users.toArray ) )
+    reloadPeersViewAdapter()
 
-    findView(TR.profilesButton).setText( overlay.users.size.toString )
+    findView(TR.peers_button).setText( overlay.users.size.toString )
 
     ImageLoader.load( user.getAvatarURL( 40 ) ){ overlay.userBitmap( user, _ ) }
 
@@ -106,15 +121,15 @@ class MainActivity extends MapActivity with TypedActivity {
   private def removeMarker( id:Int ){
     overlay.removeUserById( id )
 
-    if( peersView != null ) peersView.setAdapter( new PeersAdapter( R.layout.peers_row, overlay.users.toArray ) )
+    reloadPeersViewAdapter()
 
-    findView(TR.profilesButton).setText( overlay.users.size.toString )
+    findView(TR.peers_button).setText( overlay.users.size.toString )
     
     updateMap()
   }
 
-  private def updateMarkerCoordById( id:Int, coord:Coordinate ){    
-    overlay.users.find( _.id == id ).foreach( _.coord = coord )
+  private def updateMarker( user:Option[User] ){
+    overlay.update( user )
     updateMap()
   }
   
@@ -142,10 +157,7 @@ class MainActivity extends MapActivity with TypedActivity {
 
     mapView.gestureDetector.setOnDoubleTapListener( new OnDoubleTapListener{
       def onSingleTapConfirmed(e: MotionEvent) = false
-      def onDoubleTap(e: MotionEvent) = {
-        mapController.zoomInFixing( e.getX.toInt, e.getY.toInt )
-        true
-      }
+      def onDoubleTap(e: MotionEvent) = { mapController.zoomInFixing( e.getX.toInt, e.getY.toInt ); true }
       def onDoubleTapEvent(e: MotionEvent) = false
     })
 
@@ -160,28 +172,29 @@ class MainActivity extends MapActivity with TypedActivity {
     startService( serviceIntent )
 
 
-
-    val traceButton= findView(TR.traceButton)
+    // Trace Button ------------------------------------
+    val traceButton = findView(TR.trace_button)
     traceButton.setOnClickListener( new View.OnClickListener{
       def onClick( v:View ){
       }
     })
 
-    val profileButton = findView(TR.profilesButton)
+    // Peers Button ------------------------------------
+    val peersButton = findView(TR.peers_button)
 
     var pw:PopupWindow = null
 
-    profileButton.setOnClickListener( new View.OnClickListener{
+    peersButton.setOnClickListener( new View.OnClickListener{
 
       def onClick( v:View ){
         if( pw == null ){
           peersView = getLayoutInflater.inflate( R.layout.peers, null ).asInstanceOf[ListView]
 
-          peersView.setAdapter( new PeersAdapter( R.layout.peers_row, overlay.users.toArray ) )
+          reloadPeersViewAdapter()
 
           pw = new PopupWindow( peersView, 160, mapView.getHeight-44, false )
-          pw.showAtLocation( findViewById( R.id.mapview ), Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
-          pw.setAnimationStyle(android.R.style.Animation_Dialog)
+          pw.setAnimationStyle(android.R.style.Animation_Translucent)
+          pw.showAtLocation( mapView, Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
 
         }
         else {
@@ -206,18 +219,79 @@ class MainActivity extends MapActivity with TypedActivity {
   // ------------------------------------------------------------
   // Menu Mgmt
   // ------------------------------------------------------------
+  
+  
+  private def updateProfile( pw:PopupWindow, v:TypedViewHolder ){
+
+    currentUser.foreach{ user =>
+      currentUser= Some( user.update(  v.findView(TR.profile_name).getText.toString,
+        v.findView(TR.profile_email).getText.toString,
+        v.findView(TR.profile_status).getText.toString )
+      )
+    }
+
+    currentUser.foreach{ user =>
+      overlay.update( user )
+      sendToService( PublisherUpdate( user.publisher ) )
+    }
+
+    pw.dismiss()
+
+  }
+  
   override def onCreateOptionsMenu( menu:Menu ) = {
     val inflater = getMenuInflater
     inflater.inflate(R.menu.menu, menu )
     true
   }
 
-  override def onOptionsItemSelected( item:MenuItem ) =
-  {
+
+  override def onOptionsItemSelected( item:MenuItem ) = {
     item.getItemId match {
       case R.id.menu_about =>
         true
+
       case R.id.menu_profile =>
+        val profileView = context.getLayoutInflater.inflate( R.layout.profile, null ).asInstanceOf[RelativeLayout]
+        val v = TypedResource.view2typed( profileView )
+
+        val pw = new PopupWindow( profileView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true )
+        pw.setBackgroundDrawable(new BitmapDrawable())
+        pw.setOutsideTouchable(true)
+        pw.setAnimationStyle( android.R.style.Animation_Dialog )
+        pw.showAtLocation( mapView, Gravity.CENTER_HORIZONTAL|Gravity.TOP, 0, 100 )
+
+
+        val image = v.findView(TR.profile_avatar)
+        def loadImage( email:String ){
+          ImageLoader.load( User.getAvatarURL( email, 80) ){ bitmap =>
+            image.setImageBitmap( bitmap )
+          }
+        }
+
+        val emailView = v.findView(TR.profile_email)
+        emailView.setOnFocusChangeListener( new OnFocusChangeListener{
+          def onFocusChange( view: View, hasFocus: Boolean) { Log.v("SpotMint", "===>" + hasFocus ); if( !hasFocus ) loadImage( emailView.getText.toString ) }
+        })
+
+        currentUser.foreach{ user =>
+          v.findView(TR.profile_name).setText( user.name )
+          v.findView(TR.profile_status).setText( user.status )
+          emailView.setText( user.email )
+          loadImage( user.email )
+        }
+
+        v.findView(TR.profile_status).setOnEditorActionListener( new OnEditorActionListener(){
+          def onEditorAction( textView: TextView, actionId: Int, e: KeyEvent) = {
+            if( actionId == EditorInfo.IME_ACTION_DONE ){ updateProfile(pw,v); true }
+            else false
+          }
+        })
+        v.findView(TR.profile_update_button).setOnClickListener( new View.OnClickListener{
+          def onClick( view:View ){ updateProfile(pw,v); true }
+        })
+        
+
         true
 
       case _ => false
@@ -229,7 +303,9 @@ class MainActivity extends MapActivity with TypedActivity {
   // ------------------------------------------------------------
   // Peers Adapter
   // ------------------------------------------------------------
-
+  private def reloadPeersViewAdapter() {
+    if( peersView != null ) peersView.setAdapter( new PeersAdapter( R.layout.peers_row, overlay.users.toArray ) )
+  }
   class PeersAdapter( resourceId:Int, peers:Array[User])(implicit context:Context)
     extends ArrayAdapter[User]( context, resourceId, peers ) {
 

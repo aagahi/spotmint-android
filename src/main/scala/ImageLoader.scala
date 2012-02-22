@@ -8,6 +8,7 @@ import java.security.MessageDigest
 import java.math.BigInteger
 import android.content.Context
 import java.io.{OutputStream, InputStream, FileOutputStream, File}
+import android.util.Log
 
 // ------------------------------------------------------------
 // Handler
@@ -20,7 +21,7 @@ class ImageLoaderHandler( val url:URL, cacheDir:File, callback:Bitmap => Unit ) 
   def cacheFile:File = {
     val urlStr = url.toString
     val md5Digest = MessageDigest.getInstance( "MD5" )
-    md5Digest.update( urlStr.getBytes(), 0, urlStr.length() )
+    md5Digest.update( urlStr.getBytes, 0, urlStr.length() )
     val i = new BigInteger( 1, md5Digest.digest() )
     String.format( "%1$032X", i )
     new File( cacheDir, "cache-" + String.format( "%1$032X", i ) )
@@ -38,7 +39,7 @@ object ImageLoader {
 
   
   def load( url:URL )( callback: Bitmap => Unit )( implicit context:Context ){
-    loader.enqueue( new ImageLoaderHandler( url, context.getCacheDir(), callback ) )
+    loader.enqueue( new ImageLoaderHandler( url, context.getCacheDir, callback ) )
   }
 
 
@@ -66,6 +67,7 @@ object ImageLoader {
           if( queue.size == 0 ) wait()
           queue.dequeue()
         }
+        Log.v("SpotMint", "Dequeue image to load " + handler.url )
 
         val bitmap = bitmapCache.find( _._1 == handler.url ) match {
           case Some( tuple ) =>
@@ -96,11 +98,11 @@ object ImageLoader {
       val now = System.currentTimeMillis()
 
       val file = handler.cacheFile
-      val tempFile = new File( file.getParentFile(), file.getName()+".tmp" )
+      val tempFile = new File( file.getParentFile, file.getName+".tmp" )
       try {
         if( !file.exists() || now > file.lastModified()+ fileCacheTimeout ){
           if( tempFile.exists() ) tempFile.delete()
-          copyAndClose( connection.getInputStream(), new FileOutputStream( tempFile ) )
+          copyAndClose( connection.getInputStream, new FileOutputStream( tempFile ) )
           if( file.exists() ) file.delete()
           tempFile.renameTo( file )
         }
@@ -111,7 +113,7 @@ object ImageLoader {
       }
 
       if( file.exists() ){
-        Some( BitmapFactory.decodeFile( file.getAbsolutePath()  ) )
+        Some( BitmapFactory.decodeFile( file.getAbsolutePath ) )
       }
       else None
 

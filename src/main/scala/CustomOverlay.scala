@@ -16,11 +16,17 @@ class CustomOverlay extends Overlay {
   def addUser( item:User ){
       users ::= item
   }
+  def userById( id:Int ) = users.find( _.id == id )
 
   def removeUserById( id:Int ){
     users = users.filterNot( _.id == id )
     userIdBitmap = userIdBitmap - id
   }
+
+  def update( user:User ){
+    users = users.map( u => if( u.id == user.id ) user else u )
+  }
+  def update( user:Option[User] ){ user.foreach( update( _ ) ) }
 
 
   override def draw( canvas:Canvas, mapView:MapView, shadow:Boolean ) {

@@ -9,5 +9,29 @@
         <item name="android:shadowColor">#000</item>
     </style>
 
+    <style name="text_edit_field">
+        <item name="android:background">@drawable/rounded_border</item>
+        <item name="android:textColor">#fff</item>
+        <item name="android:textSize">18dip</item>
+        <item name="android:layout_marginBottom">8dip</item>
+    </style>
+
+
+    <style name="black_button">
+        <item name="android:background">@drawable/rounded_border</item>
+        <item name="android:textColor">@drawable/button_text_color_selector</item>
+        <item name="android:textSize">16dip</item>
+        <item name="android:textStyle">bold</item>
+
+        <item name="android:paddingLeft">10dip</item>
+        <item name="android:paddingRight">10dip</item>
+        <item name="android:paddingTop">6dip</item>
+        <item name="android:paddingBottom">8dip</item>
+
+        <item name="android:shadowRadius">0.5</item>
+        <item name="android:shadowDx">0.5</item>
+        <item name="android:shadowDy">0.5</item>
+        <item name="android:shadowColor">#000</item>
+    </style>
 
 </resources>

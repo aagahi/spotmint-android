@@ -6,6 +6,7 @@ import java.io.Serializable
 import com.google.android.maps.GeoPoint
 import org.json.JSONObject
 import android.location.Location
+import android.util.Log
 
 // ------------------------------------------------------------
 // ------------------------------------------------------------
@@ -14,23 +15,40 @@ object User {
   final val SELF_USER_ID = -1
 
   def apply( publisher:Publisher ):User = User( SELF_USER_ID, publisher.name, publisher.email, publisher.status )
+
+  def getAvatarURL( email:String, size: Int) = {
+
+    if( email != null && email.length >  0 ){
+      Log.v( "SpotMint", "Gravatar email " + email )
+      val md5Digest = MessageDigest.getInstance("MD5")
+      val in = email.trim.toLowerCase.getBytes
+      md5Digest.update(in, 0, in.length)
+      val messageDigest = md5Digest.digest()
+      val hexString = new StringBuffer()
+      messageDigest.foreach {
+        b =>
+          val hex=Integer.toHexString(0xff & b)
+          if(hex.length()==1) hexString.append('0')
+          hexString.append(hex)
+      }
+      new URL("http://gravatar.com/avatar/%s?s=%d" format(hexString.toString, size))
+    }
+    else
+      new URL("http://gravatar.com/avatar/00000000000000000000000000000000?s=%d" format(size) )
+  }
+
 }
 
-case class User(id: Int, name: String, email: String, status: String, var coord: Coordinate = Coordinate.NO_COORDINATE, var tracked: Boolean = false)
+case class User(id: Int, name: String, email: String, status: String, coord: Coordinate = Coordinate.NO_COORDINATE, var tracked: Boolean = false)
   extends Serializable {
 
   def toPublisher: Publisher = Publisher(name, email, status)
+  def update( newName: String, newEmail: String, newStatus: String ) = User( id, newName, newEmail, newStatus, coord, tracked )
+  def update( newCoord:Coordinate ) = User( id, name, email, status, newCoord, tracked )
+  def update( publisher:Publisher ) = User( id, publisher.name, publisher.email, publisher.status, coord, tracked )
+  def getAvatarURL(size: Int) = User.getAvatarURL( email, size )
 
-  def getAvatarURL(size: Int) = {
-    val md5Digest = MessageDigest.getInstance("MD5")
-    md5Digest.update(email.getBytes(), 0, email.length())
-    val messageDigest = md5Digest.digest()
-    val hexString = new StringBuffer()
-    messageDigest.foreach {
-      b => hexString.append(Integer.toHexString(0xFF & b))
-    }
-    new URL("http://gravatar.com/avatar/%s?s=%d" format(hexString.toString, size))
-  }
+  def publisher = Publisher( name, email, status )
 }
 
 

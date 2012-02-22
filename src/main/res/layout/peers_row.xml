@@ -8,8 +8,8 @@
                 >
 
     <ImageView android:id="@+id/row_image"
-               android:layout_width="30sp"
-               android:layout_height="30sp"
+               android:layout_width="30dip"
+               android:layout_height="30dip"
 
     />
 
@@ -31,7 +31,7 @@
 
             android:text="@+id/label"
             android:textColor="#fff"
-            android:textSize="12sp"
+            android:textSize="12dip"
 
             style="@style/small_black_shadow"
 
@@ -45,7 +45,7 @@
 
             android:text="@+id/label"
             android:textColor="#fff"
-            android:textSize="10sp"
+            android:textSize="10dip"
             android:textStyle="italic"
 
             style="@style/small_black_shadow"

@@ -4,4 +4,9 @@
     <string name="menu_about">About</string>
     <string name="menu_profile">Profile</string>
 
+    <string name="profile_name">Name</string>
+    <string name="profile_email">Email</string>
+    <string name="profile_status">Status</string>
+    <string name="profile_update">Update</string>
+
 </resources>

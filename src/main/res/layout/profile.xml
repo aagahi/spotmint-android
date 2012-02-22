@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_border"
+                android:padding="10dip"
+
+        >
+
+    <EditText android:id="@+id/profile_name"
+              android:layout_width="180dip"
+              android:layout_height="wrap_content"
+
+              android:layout_alignParentLeft="true"
+              android:layout_alignParentTop="true"
+
+              android:inputType="textCapWords"
+
+              android:hint="@string/profile_name"
+
+              android:singleLine="true"
+
+              style="@style/text_edit_field"
+        />
+
+    <EditText android:id="@+id/profile_email"
+              android:layout_width="180dip"
+              android:layout_height="wrap_content"
+              android:layout_below="@id/profile_name"
+
+              android:inputType="textEmailAddress"
+
+              android:hint="@string/profile_email"
+
+              android:singleLine="true"
+
+              style="@style/text_edit_field"
+    />
+
+    <EditText android:id="@+id/profile_status"
+              android:layout_width="180dip"
+              android:layout_height="wrap_content"
+              android:layout_below="@id/profile_email"
+
+              android:inputType="text"
+
+              android:hint="@string/profile_status"
+
+              android:singleLine="true"
+
+              style="@style/text_edit_field"
+            />
+
+
+    <ImageView android:id="@+id/profile_avatar"
+               android:layout_width="80dip"
+               android:layout_height="80dip"
+
+               android:layout_toRightOf="@id/profile_name"
+               android:layout_marginLeft="10dip"
+
+               android:src="@drawable/users"
+
+
+
+               android:background="#f44"
+               />
+
+    <Button android:id="@+id/profile_update_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/profile_status"
+            android:layout_centerHorizontal="true"
+
+            style="@style/black_button"
+
+            android:text="@string/profile_update" />
+
+</RelativeLayout>
