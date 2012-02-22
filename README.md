@@ -1,4 +1,4 @@
-[Setup]: ./wiki/Android-Scala-Setup-Tutorial
+[Setup]: https://github.com/aagahi/spotmint-android/wiki/Android-Scala-Setup-Tutorial
 
 
 # SpotMint Android
