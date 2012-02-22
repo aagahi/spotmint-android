@@ -7,6 +7,7 @@ import android.graphics._
 class CustomOverlay extends Overlay {
   import Coordinate.coordinateToGeoPoint
 
+
   private var userIdBitmap = Map[Int,Bitmap]()
   def userBitmap( user:User, bitmap:Bitmap ) { userIdBitmap = userIdBitmap + ( (user.id)->bitmap ) }
 
@@ -20,9 +21,8 @@ class CustomOverlay extends Overlay {
     users = users.filterNot( _.id == id )
     userIdBitmap = userIdBitmap - id
   }
-  
-  
-  
+
+
   override def draw( canvas:Canvas, mapView:MapView, shadow:Boolean ) {
     if( !shadow  )
       users.foreach{ user => userIdBitmap.get(user.id).foreach{ bitmap =>
@@ -50,4 +50,6 @@ class CustomOverlay extends Overlay {
       }
     }
   }
+
+
 }

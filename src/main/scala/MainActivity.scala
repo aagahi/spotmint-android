@@ -2,7 +2,6 @@ package com.spotmint.android
 
 import _root_.com.google.android.maps._
 
-import android.util.Log
 
 import android.content._
 import android.os.Bundle
@@ -10,15 +9,35 @@ import android.graphics.Color
 import android.widget.{PopupWindow, ArrayAdapter, ListView}
 import android.view._
 import android.view.View.OnClickListener
+import com.google.android.maps.MapView
+import android.util.{AttributeSet, Log}
+import android.view.GestureDetector.{OnGestureListener, OnDoubleTapListener}
+
+
+class DoubleTabMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
+  
+  val gestureDetector = new GestureDetector( new OnGestureListener{
+    def onDown(e: MotionEvent) = false
+    def onShowPress(e: MotionEvent) {}
+    def onSingleTapUp(e: MotionEvent) = false
+    def onScroll(e1: MotionEvent, e2: MotionEvent, dx: Float, dy: Float) = false
+    def onLongPress(e: MotionEvent) {}
+    def onFling(e1: MotionEvent, e2: MotionEvent, dx: Float, dy: Float) = false
+  })
+  override def onTouchEvent(e:MotionEvent) = {
+    if( gestureDetector.onTouchEvent(e) ) true
+    else super.onTouchEvent(e)
+  }
+}
 
 
 class MainActivity extends MapActivity with TypedActivity {
   import Coordinate.coordinateToGeoPoint
   implicit val context = this
 
-  var mapView:MapView = _
+  var mapView:DoubleTabMapView = _
   var mapController:MapController = _
-  val overlay = new CustomOverlay()
+  val overlay = new CustomOverlay
 
   var peersView:ListView = _
 
@@ -30,7 +49,7 @@ class MainActivity extends MapActivity with TypedActivity {
 
 
       val extra = intent.getSerializableExtra(MainService.WS_EXTRA)
-      intent.getAction() match {
+      intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
             case subscribChannel:SubscribedChannel =>
@@ -110,14 +129,28 @@ class MainActivity extends MapActivity with TypedActivity {
 
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
+
+    Log.v( "SpotMint", "Start Activity" )
+
     setContentView(R.layout.main)
 
     mapView = findView(TR.mapview)
     mapView.setBuiltInZoomControls( true )
     mapView.setStreetView(true)
-    mapView.getOverlays().add(overlay)
+    mapView.getOverlays.add(overlay)
 
-    mapController = mapView.getController()
+
+    mapView.gestureDetector.setOnDoubleTapListener( new OnDoubleTapListener{
+      def onSingleTapConfirmed(e: MotionEvent) = false
+      def onDoubleTap(e: MotionEvent) = {
+        mapController.zoomInFixing( e.getX.toInt, e.getY.toInt )
+        true
+      }
+      def onDoubleTapEvent(e: MotionEvent) = false
+    })
+
+
+    mapController = mapView.getController
     mapController.setZoom(14)
 
     registerReceiver( receiver, new IntentFilter( MainService.WS_MESSAGE ) )
@@ -174,14 +207,14 @@ class MainActivity extends MapActivity with TypedActivity {
   // Menu Mgmt
   // ------------------------------------------------------------
   override def onCreateOptionsMenu( menu:Menu ) = {
-    val inflater = getMenuInflater()
+    val inflater = getMenuInflater
     inflater.inflate(R.menu.menu, menu )
     true
   }
 
   override def onOptionsItemSelected( item:MenuItem ) =
   {
-    item.getItemId() match {
+    item.getItemId match {
       case R.id.menu_about =>
         true
       case R.id.menu_profile =>

@@ -1,9 +1,6 @@
 package com.spotmint.android
 
 import org.json.JSONObject
-import java.io.Serializable
-import android.location.Location
-import com.google.android.maps.GeoPoint
 
 object Serializer {
   

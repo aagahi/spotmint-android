@@ -10,7 +10,7 @@ import android.content.{Context, Intent}
 import android.location.{Location, LocationListener, LocationManager}
 import android.os.{Bundle, Binder}
 import java.io.Serializable
-import java.net.{URI}
+import java.net.URI
 import util.Random
 
 
@@ -84,7 +84,6 @@ class MainService extends Service {
 
   })
 
-
   // ------------------------------------------------------------
   // Location MGMT
   // ------------------------------------------------------------
@@ -137,7 +136,7 @@ class MainService extends Service {
   // Service Lifecycle
   // ------------------------------------------------------------
   override def onStartCommand( intent:Intent, flags:Int, startId:Int ) = {
-    intent.getAction() match {
+    intent.getAction match {
 
       case MainService.WS_MESSAGE =>
 
