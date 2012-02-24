@@ -84,6 +84,9 @@ trait WSMessage extends Serializable
 trait WSDownMessage extends WSMessage
 trait WSUpMessage extends WSMessage
 
+case class Bound(session: String) extends WSDownMessage
+
+
 case class PublisherUpdate(data: Publisher) extends WSUpMessage
 case class PublisherUpdated(channel: String, pubId: Int, data: Publisher) extends WSDownMessage
 

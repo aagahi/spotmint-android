@@ -19,11 +19,13 @@ object Serializer {
     val name = jsonMessage.keys().next().asInstanceOf[String]
     val json =jsonMessage.getJSONObject( name )
     name match {
+      case "Bound" => Bound( json.getString("session") )
       case "PublisherUpdated" => PublisherUpdated( json.getString("channel"), json.getInt("pubId"), Publisher( json.getJSONObject("data").getJSONObject("profile") ) )
       case "ChannelCreated" => ChannelCreated( json.getString( "channel" ) )
       case "SubscribedChannel" => SubscribedChannel( json.getString("channel"), json.getInt("pubId"), Publisher( json.getJSONObject("data").getJSONObject("profile") ) )
       case "UnsubscribedChannel" => UnsubscribedChannel( json.getString("channel"), json.getInt("pubId") )
       case "Published" => Published(  json.getString("channel"), json.getInt("pubId"), Coordinate( json.getJSONObject("data").getJSONObject("coord") ) )
+
     }
 
   }

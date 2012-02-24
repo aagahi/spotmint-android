@@ -110,14 +110,17 @@ class MainActivity extends MapActivity with TypedActivity {
   }
   
   private def addMarker( user:User ){
-    overlay.addUser(user)
+    if( overlay.users.exists( _.id == user.id ) ) overlay.update( user )
+    else {
+      overlay.addUser(user)
 
-    reloadPeersViewAdapter()
+      reloadPeersViewAdapter()
 
-    findView(TR.peers_button).setText( overlay.users.size.toString )
+      findView(TR.peers_button).setText( overlay.users.size.toString )
 
-    ImageLoader.load( user.getAvatarURL( 40 ) ){ overlay.userBitmap( user, _ ) }
+      ImageLoader.load( user.getAvatarURL( 40 ) ){ overlay.userBitmap( user, _ ) }
 
+    }
     updateMap()
   }
 
