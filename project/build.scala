@@ -35,7 +35,7 @@ object General {
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "spotmint",
       libraryDependencies ++= Seq(
-        "ws.nexus"                    %% "websocket-client"   % "0.1",
+        "ws.nexus"                    %% "websocket-client"   % "0.2.4-SNAPSHOT",
         "com.google.android.maps"     % "maps"                % "7_r1"          % "provided"
   )
     )
