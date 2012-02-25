@@ -11,6 +11,35 @@ import android.util.Log
 // ------------------------------------------------------------
 // ------------------------------------------------------------
 
+trait Users {
+  final var users = List[User]()
+
+  def currentUser = users.find( _.id == User.SELF_USER_ID )
+
+  def updateUserOrAppendNew( user:User ){
+    var found = false
+    users = users.map{ u => if( u.id == user.id ){ found = true;  user} else u }
+    if( !found ) users = user :: users
+  }
+
+  def updatePublisherByIdOrAppendNew( id:Int, publisher:Publisher ){
+    var found = false
+    users = users.map{ u => if( u.id == id ){ found = true;  u.update( publisher )} else u }
+    if( !found ) users = new User( id, publisher.name, publisher.email, publisher.status ) :: users
+  }
+
+  def removeById( id:Int ){ users = users.filterNot( _.id == id ) }
+
+  def updateCoord( id:Int, coord:Coordinate ){
+    users = users.map{ user => if( user.id == id ) user.update( coord ) else user }
+  }
+
+  def clearAndKeepCurrentUser() {
+    users = currentUser.toList
+  }
+
+}
+
 object User {
   final val SELF_USER_ID = -1
 

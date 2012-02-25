@@ -15,7 +15,7 @@ import android.widget.TextView.OnEditorActionListener
 import android.view.View.{OnFocusChangeListener, OnClickListener}
 
 import android.graphics.drawable.BitmapDrawable
-import inputmethod.{InputMethodManager, EditorInfo}
+import inputmethod.{EditorInfo}
 
 
 class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
@@ -38,7 +38,7 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
 object MainActivity {
   final val TAG = "SpotMint Activity"
 }
-class MainActivity extends MapActivity with TypedActivity with RunningStateAware {
+class MainActivity extends MapActivity with TypedActivity with RunningStateAware with Users {
   import MainActivity._
   import Coordinate.coordinateToGeoPoint
 
@@ -46,11 +46,13 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
   var mapView:GestureMapView = _
   var mapController:MapController = _
-  val overlay = new CustomOverlay
 
-  var currentUser:Option[User] = None
+  val overlay = new CustomOverlay( this )
+
 
   var peersView:ListView = _
+
+
 
   // ------------------------------------------------------------
   // Receiver
@@ -66,31 +68,35 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         case MainService.WS_MESSAGE =>
           extra match {
             case SubscribedChannel( channel, pubId, publisher) =>
-              addMarker( new User( pubId, publisher.name, publisher.email, publisher.status ) )
+              updatePublisherByIdOrAppendNew( pubId, publisher )
+              updateUI()
 
             case UnsubscribedChannel( _, pubId) =>
-              removeMarker( pubId )
+              removeById( pubId )
+              updateUI()
 
             case Published( _, pubId, data ) =>
-              updateMarker( overlay.userById( pubId ).map( _.update( data ) ) )
+              updateCoord( pubId, data )
+              
 
             case PublisherUpdated( _, pubId, data) =>
-              updateMarker( overlay.userById( pubId ).map( _.update( data ) ) )
-              reloadPeersViewAdapter()
+              updatePublisherByIdOrAppendNew( pubId, data )
 
             case _ =>
           }
+          
+          updateUI()
+          
         case MainService.USER_MESSAGE =>
-          val user = extra.asInstanceOf[User]
-          currentUser = Some(user)
-          addMarker( user )
+          updateUserOrAppendNew( extra.asInstanceOf[User] )
+          updateUI()
 
         case MainService.CHANNEL_MESSAGE =>
           findView(TR.channel_button).setText( "#"+extra.asInstanceOf[String] )
 
         case MainService.LOCATION_MESSAGE =>
-          val coord = extra.asInstanceOf[Coordinate]
-          updateMarker( overlay.userById( User.SELF_USER_ID ).map( _.update( coord ) ) )
+          updateCoord( User.SELF_USER_ID, extra.asInstanceOf[Coordinate] )
+          updateUI()
 
       }
     }
@@ -116,52 +122,13 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // Marker mgmt
   // ------------------------------------------------------------
 
-  private def updateMap(){
-    overlay.users.find( _.tracked ).foreach{ user => mapController.animateTo( user.coord ) }
+  private def updateUI(){
+    users.find( _.tracked ).foreach{ user => mapController.animateTo( user.coord ) }
+    reloadPeersViewAdapter()
+    findView(TR.peers_button).setText( users.length.toString )
     mapView.invalidate()
   }
   
-  private def addMarker( user:User ){
-    if( overlay.users.exists( _.id == user.id ) ) overlay.update( user )
-    else {
-      overlay.addUser(user)
-
-      reloadPeersViewAdapter()
-
-      findView(TR.peers_button).setText( overlay.users.size.toString )
-
-      ImageLoader.load( user.getAvatarURL( 40 ) ){ overlay.userBitmap( user, _ ) }
-
-    }
-    updateMap()
-  }
-
-  private def removePeersMarker(){
-    overlay.removePeers()
-    findView(TR.peers_button).setText( "1" )
-    reloadPeersViewAdapter()
-    updateMap()
-  }
-
-
-  private def removeMarker( id:Int ){
-    overlay.removeUserById( id )
-
-    reloadPeersViewAdapter()
-
-    findView(TR.peers_button).setText( overlay.users.size.toString )
-    
-    updateMap()
-  }
-
-  private def updateMarker( user:Option[User] ){
-    overlay.update( user )
-    updateMap()
-  }
-  
-
-
-
   override def isRouteDisplayed = false
 
   // ------------------------------------------------------------
@@ -171,7 +138,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
-    Log.v( TAG, "Start Activity" )
+    Log.v( TAG, "onCreate -----------------------------------" )
 
     state = RunningState.RUNNING
 
@@ -233,7 +200,11 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         def updateChannel(){
           val name = editViewChannelName.getText.toString
           channelButton.setText( "#"+ name )
-          removePeersMarker()
+
+
+          clearAndKeepCurrentUser()
+          updateUI()
+          
           sendWSMessageToService( SubscribChannel( name ))
           pw.dismiss()
         }
@@ -290,6 +261,8 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onPause(){
+    Log.v( TAG, "onPause -----------------------------------" )
+
     super.onPause()
     if( state == RunningState.RUNNING )
       sendBackgroundPolicyToService( MainService.LOW_POWER_USAGE )
@@ -298,6 +271,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onResume(){
+    Log.v( TAG, "onResume -----------------------------------" )
     super.onPause()
     sendBackgroundPolicyToService( MainService.HIGH_POWER_USAGE )
   }
@@ -305,6 +279,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onDestroy(){
+    Log.v( TAG, "onDestroy -----------------------------------" )
     super.onDestroy();
     state = RunningState.DYING
 
@@ -320,15 +295,15 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   private def updateProfile( pw:PopupWindow, v:TypedViewHolder ){
 
     currentUser.foreach{ user =>
-      currentUser= Some( user.update(  v.findView(TR.profile_name).getText.toString,
-        v.findView(TR.profile_email).getText.toString,
-        v.findView(TR.profile_status).getText.toString )
+      updateUserOrAppendNew( user.update(  v.findView(TR.profile_name).getText.toString,
+                                           v.findView(TR.profile_email).getText.toString,
+                                           v.findView(TR.profile_status).getText.toString )
       )
     }
 
     currentUser.foreach{ user =>
-      overlay.update( user )
       sendWSMessageToService( PublisherUpdate( user.publisher ) )
+      updateUI()
     }
 
     pw.dismiss()
@@ -416,7 +391,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // Peers Adapter
   // ------------------------------------------------------------
   private def reloadPeersViewAdapter() {
-    if( peersView != null ) peersView.setAdapter( new PeersAdapter( R.layout.peers_row, overlay.users.toArray ) )
+    if( peersView != null ) peersView.setAdapter( new PeersAdapter( R.layout.peers_row, users.toArray ) )
   }
   class PeersAdapter( resourceId:Int, peers:Array[User])(implicit context:Context)
     extends ArrayAdapter[User]( context, resourceId, peers ) {
@@ -445,9 +420,9 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           trackedView = if( user.tracked ) Some(view) else None
 
           view.setBackgroundColor(  if( user.tracked ) TRACKED_COLOR else Color.TRANSPARENT )
-          for( u <- overlay.users; if( u != user ) ) u.tracked = false
+          for( u <- users; if( u != user ) ) u.tracked = false
 
-          updateMap()
+          updateUI()
         }
 
       })

@@ -95,6 +95,9 @@ class MainService extends Service with RunningStateAware{
   var reconnectSleep = 0L
   var MAX_RECONNECT_SLEEP = 60*1000
 
+  var susbscribeds = List[SubscribedChannel]()
+  var publisheds = List[Published]()
+
   val client = new Client( new WebSocketEventHandler{
     override def onOpen( client:Client ) {
       reconnectSleep = 0
@@ -120,6 +123,22 @@ class MainService extends Service with RunningStateAware{
         case subscribedChannel:SubscribedChannel =>
           // TODO: Use publishTo instead
           client.send( Publish( currentChannel, currentUser.coord ) )
+
+          susbscribeds = subscribedChannel :: susbscribeds
+
+        case UnsubscribedChannel(channel, pubId) =>
+          susbscribeds = susbscribeds.filterNot( _.pubId == pubId )
+          publisheds = publisheds.filterNot( _.pubId == pubId )
+
+        case PublisherUpdated(channel, pubId, publisher) =>
+          susbscribeds = susbscribeds.map{ sub =>
+            if( sub.channel == channel && sub.pubId == pubId ) SubscribedChannel( channel, pubId, publisher )
+            else sub
+          }
+
+        case published:Published =>
+          publisheds = published :: publisheds.filterNot( _.pubId == published.pubId )
+
         case _ =>
       }
     }
@@ -168,7 +187,6 @@ class MainService extends Service with RunningStateAware{
     val coord = Coordinate( lastKnownLocation )
 
     currentUser = currentUser.update( coord )
-    broadcast( USER_MESSAGE, currentUser )
 
     registerHighAccuracyLocationManager()
   }
@@ -267,9 +285,12 @@ class MainService extends Service with RunningStateAware{
         }
 
 
+      // default start (usually when activity restart)
       case _ =>
-
-
+        broadcast( USER_MESSAGE, currentUser )
+        broadcast( CHANNEL_MESSAGE, currentChannel )
+        susbscribeds.foreach( broadcast( WS_MESSAGE, _ ) )
+        publisheds.foreach( broadcast( WS_MESSAGE, _ ) )
     }
 
     Service.START_STICKY
@@ -289,13 +310,13 @@ class MainService extends Service with RunningStateAware{
     startLocation()
     client.connect( nexusURI, Client.ConnectionOption.DEFAULT )
 
-    broadcast( CHANNEL_MESSAGE, currentChannel )
 
   }
 
   
   override def onDestroy(){
     super.onDestroy()
+    client.send( UnsubscribChannel( currentChannel ) )
     state = RunningState.DYING
     removeNotificationBar()
     locationManager.removeUpdates( locationListener )

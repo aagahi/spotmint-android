@@ -4,60 +4,54 @@ package com.spotmint.android
 import com.google.android.maps.{MapView, Overlay}
 import android.graphics._
 
-class CustomOverlay extends Overlay {
+class CustomOverlay( usersHolder:Users ) extends Overlay {
   import Coordinate.coordinateToGeoPoint
 
 
   private var userIdBitmap = Map[Int,Bitmap]()
-  def userBitmap( user:User, bitmap:Bitmap ) { userIdBitmap = userIdBitmap + ( (user.id)->bitmap ) }
-
-  var users = List[User]()
-
-  def addUser( item:User ){
-      users ::= item
-  }
-  def userById( id:Int ) = users.find( _.id == id )
-
-  def removePeers() { users = users.filter( _.id == User.SELF_USER_ID ) }
-
-  def removeUserById( id:Int ){
-    users = users.filterNot( _.id == id )
-    userIdBitmap = userIdBitmap - id
+  private def userBitmap( mapView:MapView, user:User, bitmap:Bitmap ) {
+    userIdBitmap = userIdBitmap + ( (user.id)->bitmap ); mapView.invalidate()
   }
 
-  def update( user:User ){
-    users = users.map( u => if( u.id == user.id ) user else u )
-  }
-  def update( user:Option[User] ){ user.foreach( update( _ ) ) }
+
+
 
 
   override def draw( canvas:Canvas, mapView:MapView, shadow:Boolean ) {
     if( !shadow  )
-      users.foreach{ user => userIdBitmap.get(user.id).foreach{ bitmap =>
-        val pixel = mapView.getProjection.toPixels( user.coord, null )
+      usersHolder.users.foreach{ user =>
+        userIdBitmap.get( user.id ) match {
+          case Some( bitmap)  =>
+            val pixel = mapView.getProjection.toPixels( user.coord, null )
 
-        val x = pixel.x-bitmap.getWidth/2
-        val y = pixel.y-bitmap.getHeight
-        val w = bitmap.getWidth
-        val h = bitmap.getHeight
-        
-        val paint = new Paint()
-        paint.setColor( Color.BLACK )
-        paint.setStyle( Paint.Style.STROKE )
-        paint.setShadowLayer( 4, 2, 2, Color.parseColor( "#80000000") )
-        canvas.drawRect( x, y, x+w, y+h, paint )
+            val x = pixel.x-bitmap.getWidth/2
+            val y = pixel.y-bitmap.getHeight
+            val w = bitmap.getWidth
+            val h = bitmap.getHeight
 
-        canvas.drawBitmap( bitmap, x, y, null )
+            val paint = new Paint()
+            paint.setColor( Color.BLACK )
+            paint.setStyle( Paint.Style.STROKE )
+            paint.setShadowLayer( 4, 2, 2, Color.parseColor( "#80000000") )
+            canvas.drawRect( x, y, x+w, y+h, paint )
 
-        paint.clearShadowLayer()
-        canvas.drawRect( x, y, x+w, y+h, paint )
+            canvas.drawBitmap( bitmap, x, y, null )
 
-        paint.setStyle( Paint.Style.FILL )
-        paint.setAntiAlias( true )
-        canvas.drawCircle( pixel.x, pixel.y, 3, paint )
+            paint.clearShadowLayer()
+            canvas.drawRect( x, y, x+w, y+h, paint )
+
+            paint.setStyle( Paint.Style.FILL )
+            paint.setAntiAlias( true )
+            canvas.drawCircle( pixel.x, pixel.y, 3, paint )
+
+          case None =>
+            implicit val context = mapView.getContext
+            ImageLoader.load( user.getAvatarURL( 40 ) ){ userBitmap( mapView, user, _ ) }
+        }
+
       }
-    }
   }
+
 
 
 }
