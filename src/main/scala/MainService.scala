@@ -1,6 +1,5 @@
 package com.spotmint.android
 
-import android.app.Service
 import ws.nexus.websocket.client.{WebSocketEventHandler, Client}
 import org.json.JSONObject
 import android.util.Log
@@ -12,6 +11,7 @@ import android.os.{Bundle, Binder}
 import java.io.Serializable
 import java.net.URI
 import util.Random
+import android.app.{NotificationManager, PendingIntent, Notification, Service}
 
 
 object MainService {
@@ -42,7 +42,7 @@ object MainService {
 }
 
 // ------------------------------------------------------------
-class MainService extends Service {
+class MainService extends Service with RunningStateAware{
   import MainService._
 
 
@@ -52,13 +52,8 @@ class MainService extends Service {
   lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )
   var currentChannel = DEFAULT_CHANNEL_NAME
 
-  var currentSession = ""
-  var lastNetworkActivity = 0L
-  val sessionTimeoutSec = 300
-  def nexusURI = new URI("wss://nexus.ws/json-1.0/"+sessionTimeoutSec+"/"+currentSession)
 
-  var stopping = false
-  
+
   // ------------------------------------------------------------
   // Pref persistence
   // ------------------------------------------------------------
@@ -92,8 +87,17 @@ class MainService extends Service {
   // ------------------------------------------------------------
   // WS Client
   // ------------------------------------------------------------
+  var currentSession = ""
+  var lastNetworkActivity = 0L
+  val sessionTimeoutSec = 300
+  def nexusURI = new URI("wss://nexus.ws/json-1.0/"+sessionTimeoutSec+"/"+currentSession)
+
+  var reconnectSleep = 0L
+  var MAX_RECONNECT_SLEEP = 60*1000
+
   val client = new Client( new WebSocketEventHandler{
     override def onOpen( client:Client ) {
+      reconnectSleep = 0
       if( currentSession.length() == 0 || lastNetworkActivity < System.currentTimeMillis - sessionTimeoutSec*1000 ){
         // shound send if timeout deconnection - 300sec
         client.send( PublisherUpdate( currentUser.toPublisher ) )
@@ -121,9 +125,12 @@ class MainService extends Service {
     }
    
     override def onStop( client:Client ){
-      Log.i( "WS Stop", "Reconnect " + nexusURI.toString + " / stopping:" + stopping )
-      if(!stopping)
+      if( state == RunningState.RUNNING ){
+        Thread.sleep( reconnectSleep )
+        reconnectSleep = if( reconnectSleep >= MAX_RECONNECT_SLEEP ) reconnectSleep else reconnectSleep + 1000
+        Log.i( "WS Stop", "Reconnect " + nexusURI.toString )
         client.connect( nexusURI, Client.ConnectionOption.DEFAULT  )
+      }
 
     }
     override def onError( client:Client, t:Throwable ){
@@ -192,6 +199,33 @@ class MainService extends Service {
     broadCastIntent.putExtra( WS_EXTRA, message )
     sendBroadcast( broadCastIntent )
   }
+  // ------------------------------------------------------------
+  // Notification bar
+  // ------------------------------------------------------------
+  val SPOTMINT_NOTIFICATION_ID = 1
+
+  private def showNotiticationBar(){
+    val icon = android.R.drawable.stat_notify_more;
+    val tickerText = "SpotMint";
+    val when = System.currentTimeMillis();
+
+    val notification = new Notification( icon, tickerText, when )
+
+    val contentTitle = "SpotMint"
+    val contentText = "Broadcast on channel #"+currentChannel
+    val notificationIntent = new Intent(this, classOf[MainActivity])
+    val contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
+
+    notification.flags |= Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR
+
+    notification.setLatestEventInfo( getApplicationContext(), contentTitle, contentText, contentIntent)
+
+    getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager].notify(SPOTMINT_NOTIFICATION_ID, notification)
+  }
+
+  private def removeNotificationBar(){
+    getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager].cancel(SPOTMINT_NOTIFICATION_ID)
+  }
 
 
   // ------------------------------------------------------------
@@ -209,6 +243,7 @@ class MainService extends Service {
           case SubscribChannel( channel ) =>
             client.send( UnsubscribChannel( currentChannel ) )
             currentChannel = channel
+            showNotiticationBar()
             saveChannel()
             client.send( msg )
             client.send( Publish( currentChannel, currentUser.coord ) )
@@ -244,11 +279,13 @@ class MainService extends Service {
 
   override def onCreate(){
     super.onCreate()
-    stopping = false
+    state = RunningState.RUNNING
 
     currentSession = sharedPreferences.getString( PREFS_SESSION, "" )
     currentChannel = sharedPreferences.getString( PREFS_CHANNEL_NAME, DEFAULT_CHANNEL_NAME )
     currentUser = loadUser()
+
+    showNotiticationBar()
     startLocation()
     client.connect( nexusURI, Client.ConnectionOption.DEFAULT )
 
@@ -259,7 +296,8 @@ class MainService extends Service {
   
   override def onDestroy(){
     super.onDestroy()
-    stopping = true
+    state = RunningState.DYING
+    removeNotificationBar()
     locationManager.removeUpdates( locationListener )
     client.close()
   }

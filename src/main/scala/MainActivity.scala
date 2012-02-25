@@ -34,13 +34,11 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
   }
 }
 
+
 object MainActivity {
   final val TAG = "SpotMint Activity"
-
-
-
 }
-class MainActivity extends MapActivity with TypedActivity {
+class MainActivity extends MapActivity with TypedActivity with RunningStateAware {
   import MainActivity._
   import Coordinate.coordinateToGeoPoint
 
@@ -51,7 +49,7 @@ class MainActivity extends MapActivity with TypedActivity {
   val overlay = new CustomOverlay
 
   var currentUser:Option[User] = None
-  
+
   var peersView:ListView = _
 
   // ------------------------------------------------------------
@@ -175,6 +173,8 @@ class MainActivity extends MapActivity with TypedActivity {
 
     Log.v( TAG, "Start Activity" )
 
+    state = RunningState.RUNNING
+
     setContentView(R.layout.main)
 
 
@@ -290,14 +290,15 @@ class MainActivity extends MapActivity with TypedActivity {
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onPause(){
-    super.onPause();
-    sendBackgroundPolicyToService( MainService.LOW_POWER_USAGE )
+    super.onPause()
+    if( state == RunningState.RUNNING )
+      sendBackgroundPolicyToService( MainService.LOW_POWER_USAGE )
   }
 
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onResume(){
-    super.onPause();
+    super.onPause()
     sendBackgroundPolicyToService( MainService.HIGH_POWER_USAGE )
   }
 
@@ -305,6 +306,8 @@ class MainActivity extends MapActivity with TypedActivity {
   // ------------------------------------------------------------
   override def onDestroy(){
     super.onDestroy();
+    state = RunningState.DYING
+
     unregisterReceiver( receiver )
   }
 
@@ -394,6 +397,7 @@ class MainActivity extends MapActivity with TypedActivity {
 
       // ------------------------------------------------------------
       case R.id.menu_signout =>
+        state = RunningState.DYING
         val serviceIntent = new Intent( context, classOf[MainService] )
         val status = stopService( serviceIntent )
         Log.v( TAG, "Activity has stopped service: " + status )
