@@ -14,5 +14,11 @@
     <string name="update_button">Update</string>
     <string name="clear_button">Clear</string>
 
+    <string name="share_subject">Join us on channel %s</string>
+    <string name="share_text" formatted="false"><![CDATA[Join us with your browser http://spotmint.com/%s or your mobile app spotmint://%s]]></string>
+
+    <string name="notification_ticker">SpotMint</string>
+    <string name="notification_title">SpotMint</string>
+    <string name="notification_text">Broadcast on channel %s</string>
 
 </resources>

@@ -224,13 +224,13 @@ class MainService extends Service with RunningStateAware{
 
   private def showNotiticationBar(){
     val icon = android.R.drawable.stat_notify_more;
-    val tickerText = "SpotMint";
+    val tickerText = getString( R.string.notification_ticker )
     val when = System.currentTimeMillis();
 
     val notification = new Notification( icon, tickerText, when )
 
-    val contentTitle = "SpotMint"
-    val contentText = "Broadcast on channel #"+currentChannel
+    val contentTitle = getString( R.string.notification_title )
+    val contentText = getString( R.string.notification_text ) format ( "#" + currentChannel )
     val notificationIntent = new Intent(this, classOf[MainActivity])
     val contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
 

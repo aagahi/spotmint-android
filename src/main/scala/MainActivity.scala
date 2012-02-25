@@ -16,8 +16,12 @@ import android.view.View.{OnFocusChangeListener, OnClickListener}
 
 import android.graphics.drawable.BitmapDrawable
 import inputmethod.{EditorInfo}
+import android.content.Context._
 
 
+// ------------------------------------------------------------
+// ------------------------------------------------------------
+// ------------------------------------------------------------
 class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
   
   val gestureDetector = new GestureDetector( new OnGestureListener{
@@ -35,6 +39,9 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
 }
 
 
+// ------------------------------------------------------------
+// ------------------------------------------------------------
+// ------------------------------------------------------------
 object MainActivity {
   final val TAG = "SpotMint Activity"
 }
@@ -170,17 +177,25 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     mapController = mapView.getController
     mapController.setZoom(14)
 
+    val shareButton = findView(TR.share_button)
+    val channelButton = findView(TR.channel_button)
+    val peersButton = findView(TR.peers_button)
 
-
-    // Trace Button ------------------------------------
-    val traceButton = findView(TR.trace_button)
-    traceButton.setOnClickListener( new View.OnClickListener{
+    // Share Button ------------------------------------
+    shareButton.setOnClickListener( new View.OnClickListener{
       def onClick( v:View ){
+        val shareIntent = new Intent(Intent.ACTION_SEND)
+        shareIntent.setType("text/plain")
+        val currentChannel = channelButton.getText
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format( currentChannel ) )
+        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentChannel, currentChannel ) )
+
+        context.startActivity(shareIntent);
+
       }
     })
 
     // Channel Button ------------------------------------
-    val channelButton = findView(TR.channel_button)
     channelButton.setOnClickListener( new View.OnClickListener{
       
       def onClick( v:View ){
@@ -229,7 +244,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     })
 
     // Peers Button ------------------------------------
-    val peersButton = findView(TR.peers_button)
 
     var pw:PopupWindow = null
 
@@ -272,7 +286,14 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // ------------------------------------------------------------
   override def onResume(){
     Log.v( TAG, "onResume -----------------------------------" )
-    super.onPause()
+    super.onResume()
+
+    val intent = getIntent()
+    if( Intent.ACTION_VIEW == intent.getAction() ){
+      val uri = intent.getData()
+      Log.v( TAG, "URI========> " + uri )
+    }
+
     sendBackgroundPolicyToService( MainService.HIGH_POWER_USAGE )
   }
 
