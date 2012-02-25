@@ -12,4 +12,9 @@
           android:icon="@android:drawable/ic_menu_manage"
             />
 
+    <item android:id="@+id/menu_signout"
+          android:title="@string/menu_signout"
+          android:icon="@android:drawable/ic_menu_close_clear_cancel"
+            />
+
 </menu>

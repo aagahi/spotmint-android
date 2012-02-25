@@ -15,12 +15,20 @@ import util.Random
 
 
 object MainService {
-  final val LOCATION_MESSAGE = "MainService.LOCATION_MESSAGE"
+  
+  final val TAG = "SpotMint Service"
+  
   final val WS_MESSAGE = "MainService.WS_MESSAGE"
+  final val LOCATION_MESSAGE = "MainService.LOCATION_MESSAGE"
   final val USER_MESSAGE = "MainService.USER_MESSAGE"
   final val CHANNEL_MESSAGE = "MainService.CHANNEL_MESSAGE"
+  final val BACKGROUND_POLICY_MESSAGE = "MainService.BACKGROUND_POLICY_MESSAGE"
+
   final val WS_EXTRA = "extra"
 
+  final val LOW_POWER_USAGE = 0
+  final val HIGH_POWER_USAGE = 2
+  
   final val DEFAULT_CHANNEL_NAME = "tap to change"
 
   final val PREFS_CHANNEL_NAME = "channel"
@@ -49,6 +57,8 @@ class MainService extends Service {
   val sessionTimeoutSec = 300
   def nexusURI = new URI("wss://nexus.ws/json-1.0/"+sessionTimeoutSec+"/"+currentSession)
 
+  var stopping = false
+  
   // ------------------------------------------------------------
   // Pref persistence
   // ------------------------------------------------------------
@@ -84,12 +94,12 @@ class MainService extends Service {
   // ------------------------------------------------------------
   val client = new Client( new WebSocketEventHandler{
     override def onOpen( client:Client ) {
-      if( currentSession.length() == 0 ){
+      if( currentSession.length() == 0 || lastNetworkActivity < System.currentTimeMillis - sessionTimeoutSec*1000 ){
         // shound send if timeout deconnection - 300sec
-        if( lastNetworkActivity < System.currentTimeMillis - sessionTimeoutSec*1000 )
         client.send( PublisherUpdate( currentUser.toPublisher ) )
         client.send( SubscribChannel( currentChannel ) )
-      }
+       }
+
       client.send( Publish( currentChannel, currentUser.coord ) )
     }
     override def onMessage( client:Client, text:String ){
@@ -111,8 +121,9 @@ class MainService extends Service {
     }
    
     override def onStop( client:Client ){
-      Log.i( "WS Stop", "Reconnect " + nexusURI.toString )
-      client.connect( nexusURI, Client.ConnectionOption.DEFAULT  )
+      Log.i( "WS Stop", "Reconnect " + nexusURI.toString + " / stopping:" + stopping )
+      if(!stopping)
+        client.connect( nexusURI, Client.ConnectionOption.DEFAULT  )
 
     }
     override def onError( client:Client, t:Throwable ){
@@ -125,8 +136,26 @@ class MainService extends Service {
   // ------------------------------------------------------------
   // Location MGMT
   // ------------------------------------------------------------
+  var locationManager:LocationManager = _
+  val locationListener = new LocationListener {
+    override def onLocationChanged(location: Location) {
+      val coord = Coordinate( location )
+      currentUser = currentUser.update( coord )
+      Log.v(TAG, "Client state " + client.clientThread.isAlive + " / " + client.clientThread.running.get )
+      client.send( Publish( currentChannel, coord ) )
+      broadcast( LOCATION_MESSAGE, coord )
+    }
+
+    override def onStatusChanged(p1: String, p2: Int, p3: Bundle) {
+    }
+
+    override def onProviderEnabled(p1: String) {}
+
+    override def onProviderDisabled(p1: String) {}
+  }
+
   def startLocation(){
-    val locationManager = getSystemService(Context.LOCATION_SERVICE).asInstanceOf[LocationManager]
+    locationManager = getSystemService(Context.LOCATION_SERVICE).asInstanceOf[LocationManager]
     val lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
 
     val coord = Coordinate( lastKnownLocation )
@@ -134,34 +163,31 @@ class MainService extends Service {
     currentUser = currentUser.update( coord )
     broadcast( USER_MESSAGE, currentUser )
 
+    registerHighAccuracyLocationManager()
+  }
 
-    val locationListener = new LocationListener {
-      override def onLocationChanged(location: Location) {
-        val coord = Coordinate( location )
-        currentUser = currentUser.update( coord )
-        Log.v("SpotMint", "Client state " + client.clientThread.isAlive + " / " + client.clientThread.running.get )
-        client.send( Publish( currentChannel, coord ) )
-        broadcast( LOCATION_MESSAGE, coord )
-      }
+  @inline private def registerHighAccuracyLocationManager(){
+    Log.v(TAG, "High Accurracy Location"  )
 
-      override def onStatusChanged(p1: String, p2: Int, p3: Bundle) {
-      }
+    val minTimeMilisec = 1000*60
+    val minDistanceMeter = 10
+    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, minTimeMilisec, minDistanceMeter, locationListener )
+    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTimeMilisec, minDistanceMeter, locationListener )
+  }
 
-      override def onProviderEnabled(p1: String) {}
+  @inline private def registerLowAccuracyLocationManager(){
+    Log.v(TAG, "Low Accurracy Location"  )
 
-      override def onProviderDisabled(p1: String) {}
-    }
-
-    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener )
-    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, locationListener )
-
+    val minTimeMilisec = 1000*60*3
+    val minDistanceMeter = 50
+    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTimeMilisec, minDistanceMeter, locationListener )
   }
 
   // ------------------------------------------------------------
   // Broadcast MGMT
   // ------------------------------------------------------------
   private def broadcast( messageType:String, message:Serializable ){
-    Log.v("SpotMint", "Broadcast %s => %s" format ( messageType, message.toString ) )
+    Log.v(TAG, "Broadcast %s => %s" format ( messageType, message.toString ) )
     val broadCastIntent = new Intent( messageType )
     broadCastIntent.putExtra( WS_EXTRA, message )
     sendBroadcast( broadCastIntent )
@@ -173,8 +199,7 @@ class MainService extends Service {
   // ------------------------------------------------------------
   override def onStartCommand( intent:Intent, flags:Int, startId:Int ) = {
     intent.getAction match {
-
-      case MainService.WS_MESSAGE =>
+      case WS_MESSAGE =>
         val msg = intent.getSerializableExtra( WS_EXTRA ).asInstanceOf[WSUpMessage]
         msg match {
           case PublisherUpdate( publisher )=>
@@ -191,30 +216,51 @@ class MainService extends Service {
           case _ =>
             client.send( msg )
         }
-        
+
+
+      case BACKGROUND_POLICY_MESSAGE =>
+        intent.getIntExtra( WS_EXTRA, LOW_POWER_USAGE ) match {
+          case LOW_POWER_USAGE =>
+            locationManager.removeUpdates( locationListener )
+            registerLowAccuracyLocationManager()
+
+
+
+          case HIGH_POWER_USAGE =>
+            locationManager.removeUpdates( locationListener )
+            registerHighAccuracyLocationManager()
+        }
 
 
       case _ =>
-        broadcast( CHANNEL_MESSAGE, currentChannel )
+
 
     }
 
     Service.START_STICKY
   }
 
-  
-  
+
+
   override def onCreate(){
     super.onCreate()
+    stopping = false
+
     currentSession = sharedPreferences.getString( PREFS_SESSION, "" )
     currentChannel = sharedPreferences.getString( PREFS_CHANNEL_NAME, DEFAULT_CHANNEL_NAME )
     currentUser = loadUser()
     startLocation()
     client.connect( nexusURI, Client.ConnectionOption.DEFAULT )
+
+    broadcast( CHANNEL_MESSAGE, currentChannel )
+
   }
 
   
   override def onDestroy(){
+    super.onDestroy()
+    stopping = true
+    locationManager.removeUpdates( locationListener )
     client.close()
   }
 

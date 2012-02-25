@@ -34,9 +34,16 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
   }
 }
 
+object MainActivity {
+  final val TAG = "SpotMint Activity"
 
+
+
+}
 class MainActivity extends MapActivity with TypedActivity {
+  import MainActivity._
   import Coordinate.coordinateToGeoPoint
+
   implicit val context = this
 
   var mapView:GestureMapView = _
@@ -56,7 +63,7 @@ class MainActivity extends MapActivity with TypedActivity {
 
       val extra = intent.getSerializableExtra(MainService.WS_EXTRA)
       
-      Log.v( "SpotMint", "Extra %s / Action %s" format ( extra.toString, intent.getAction ))
+      Log.v( TAG, "Extra %s / Action %s" format ( extra.toString, intent.getAction ))
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
@@ -91,9 +98,16 @@ class MainActivity extends MapActivity with TypedActivity {
     }
   }
 
-  def sendToService( message:WSUpMessage ){
+  def sendWSMessageToService( message:WSUpMessage ){
     val serviceIntent = new Intent( context, classOf[MainService] )
     serviceIntent.setAction( MainService.WS_MESSAGE )
+    serviceIntent.putExtra( MainService.WS_EXTRA, message )
+    startService( serviceIntent )
+  }
+
+  def sendBackgroundPolicyToService( message:Int ){
+    val serviceIntent = new Intent( context, classOf[MainService] )
+    serviceIntent.setAction( MainService.BACKGROUND_POLICY_MESSAGE )
     serviceIntent.putExtra( MainService.WS_EXTRA, message )
     startService( serviceIntent )
   }
@@ -159,7 +173,7 @@ class MainActivity extends MapActivity with TypedActivity {
   override def onCreate(bundle: Bundle) {
     super.onCreate(bundle)
 
-    Log.v( "SpotMint", "Start Activity" )
+    Log.v( TAG, "Start Activity" )
 
     setContentView(R.layout.main)
 
@@ -220,7 +234,7 @@ class MainActivity extends MapActivity with TypedActivity {
           val name = editViewChannelName.getText.toString
           channelButton.setText( "#"+ name )
           removePeersMarker()
-          sendToService( SubscribChannel( name ))
+          sendWSMessageToService( SubscribChannel( name ))
           pw.dismiss()
         }
 
@@ -272,6 +286,21 @@ class MainActivity extends MapActivity with TypedActivity {
 
   }
 
+
+  // ------------------------------------------------------------
+  // ------------------------------------------------------------
+  override def onPause(){
+    super.onPause();
+    sendBackgroundPolicyToService( MainService.LOW_POWER_USAGE )
+  }
+
+  // ------------------------------------------------------------
+  // ------------------------------------------------------------
+  override def onResume(){
+    super.onPause();
+    sendBackgroundPolicyToService( MainService.HIGH_POWER_USAGE )
+  }
+
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onDestroy(){
@@ -296,7 +325,7 @@ class MainActivity extends MapActivity with TypedActivity {
 
     currentUser.foreach{ user =>
       overlay.update( user )
-      sendToService( PublisherUpdate( user.publisher ) )
+      sendWSMessageToService( PublisherUpdate( user.publisher ) )
     }
 
     pw.dismiss()
@@ -312,9 +341,11 @@ class MainActivity extends MapActivity with TypedActivity {
 
   override def onOptionsItemSelected( item:MenuItem ) = {
     item.getItemId match {
+      // ------------------------------------------------------------
       case R.id.menu_about =>
         true
 
+      // ------------------------------------------------------------
       case R.id.menu_profile =>
         val profileView = context.getLayoutInflater.inflate( R.layout.profile, null ).asInstanceOf[RelativeLayout]
         val v = TypedResource.view2typed( profileView )
@@ -359,6 +390,17 @@ class MainActivity extends MapActivity with TypedActivity {
         
 
         true
+
+
+      // ------------------------------------------------------------
+      case R.id.menu_signout =>
+        val serviceIntent = new Intent( context, classOf[MainService] )
+        val status = stopService( serviceIntent )
+        Log.v( TAG, "Activity has stopped service: " + status )
+        finish()
+
+        true
+
 
       case _ => false
     }
