@@ -261,6 +261,7 @@ class MainService extends Service with RunningStateAware{
           case SubscribChannel( channel ) =>
             client.send( UnsubscribChannel( currentChannel ) )
             currentChannel = channel
+            broadcast( CHANNEL_MESSAGE, currentChannel )
             showNotiticationBar()
             saveChannel()
             client.send( msg )

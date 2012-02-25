@@ -100,6 +100,8 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
         case MainService.CHANNEL_MESSAGE =>
           findView(TR.channel_button).setText( "#"+extra.asInstanceOf[String] )
+          clearAndKeepCurrentUser()
+          updateUI()
 
         case MainService.LOCATION_MESSAGE =>
           updateCoord( User.SELF_USER_ID, extra.asInstanceOf[Coordinate] )
@@ -135,8 +137,14 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     findView(TR.peers_button).setText( users.length.toString )
     mapView.invalidate()
   }
+
+
+  // ------------------------------------------------------------
+  // Misc
+  // ------------------------------------------------------------
   
   override def isRouteDisplayed = false
+
 
   // ------------------------------------------------------------
   // View Lifecycle
@@ -177,16 +185,13 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     mapController = mapView.getController
     mapController.setZoom(14)
 
-    val shareButton = findView(TR.share_button)
-    val channelButton = findView(TR.channel_button)
-    val peersButton = findView(TR.peers_button)
 
     // Share Button ------------------------------------
-    shareButton.setOnClickListener( new View.OnClickListener{
+    findView(TR.share_button).setOnClickListener( new View.OnClickListener{
       def onClick( v:View ){
         val shareIntent = new Intent(Intent.ACTION_SEND)
         shareIntent.setType("text/plain")
-        val currentChannel = channelButton.getText
+        val currentChannel = findView(TR.channel_button).getText
         shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format( currentChannel ) )
         shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentChannel, currentChannel ) )
 
@@ -196,7 +201,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     })
 
     // Channel Button ------------------------------------
-    channelButton.setOnClickListener( new View.OnClickListener{
+    findView(TR.channel_button).setOnClickListener( new View.OnClickListener{
       
       def onClick( v:View ){
         val channelView = context.getLayoutInflater.inflate( R.layout.channel, null ).asInstanceOf[ViewGroup]
@@ -209,24 +214,19 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         pw.showAtLocation( mapView, Gravity.CENTER_HORIZONTAL|Gravity.TOP, 0, 100 )
 
         val editViewChannelName = v.findView(TR.channel_name)
-        editViewChannelName.setText( channelButton.getText.toString.substring( 1 ) )
+        editViewChannelName.setText( findView(TR.channel_button).getText.toString.substring( 1 ) )
         editViewChannelName.requestFocusFromTouch()
 
-        def updateChannel(){
+        def update() = {
           val name = editViewChannelName.getText.toString
-          channelButton.setText( "#"+ name )
-
-
-          clearAndKeepCurrentUser()
-          updateUI()
-          
           sendWSMessageToService( SubscribChannel( name ))
           pw.dismiss()
+          true
         }
 
         editViewChannelName.setOnEditorActionListener( new OnEditorActionListener(){
           def onEditorAction( textView: TextView, actionId: Int, e: KeyEvent) = {
-            if( actionId == EditorInfo.IME_ACTION_DONE ){ updateChannel(); true }
+            if( actionId == EditorInfo.IME_ACTION_DONE ){ update() }
             else false
           }
         })
@@ -236,7 +236,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         })
 
         v.findView(TR.channel_update_button).setOnClickListener( new View.OnClickListener{
-          def onClick( view:View ){ updateChannel(); true }
+          def onClick( view:View ){ update() }
         })
 
 
@@ -247,7 +247,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
     var pw:PopupWindow = null
 
-    peersButton.setOnClickListener( new View.OnClickListener{
+    findView(TR.peers_button).setOnClickListener( new View.OnClickListener{
 
       def onClick( v:View ){
         if( pw == null ){
@@ -275,9 +275,9 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onPause(){
+    super.onPause()
     Log.v( TAG, "onPause -----------------------------------" )
 
-    super.onPause()
     if( state == RunningState.RUNNING )
       sendBackgroundPolicyToService( MainService.LOW_POWER_USAGE )
   }
@@ -285,13 +285,17 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // ------------------------------------------------------------
   // ------------------------------------------------------------
   override def onResume(){
-    Log.v( TAG, "onResume -----------------------------------" )
     super.onResume()
+    Log.v( TAG, "onResume -----------------------------------" )
 
+    // Deal with outside intent with app uri
     val intent = getIntent()
     if( Intent.ACTION_VIEW == intent.getAction() ){
-      val uri = intent.getData()
-      Log.v( TAG, "URI========> " + uri )
+      val uri = intent.getData().toString
+
+      val i = uri.lastIndexOf("#")
+      if( i > 0 ) sendWSMessageToService( SubscribChannel( uri.substring( i+1 ) ) )
+
     }
 
     sendBackgroundPolicyToService( MainService.HIGH_POWER_USAGE )
