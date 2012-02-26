@@ -24,22 +24,6 @@
             android:layout_x="0dip"
             >
         
-        <Button android:id="@+id/share_button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-
-                android:hapticFeedbackEnabled="true"
-
-                android:textColor="@drawable/button_text_color_selector"
-                android:drawableRight="@drawable/share"
-
-                android:background="#00000000"
-
-                android:padding="10dip"
-
-           />
-        
 
         <Button android:id="@+id/channel_button"
                 android:layout_width="wrap_content"

@@ -17,6 +17,7 @@ import android.view.View.{OnFocusChangeListener, OnClickListener}
 import android.graphics.drawable.BitmapDrawable
 import inputmethod.{EditorInfo}
 import android.content.Context._
+import android.webkit.WebView
 
 
 // ------------------------------------------------------------
@@ -44,6 +45,9 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
 // ------------------------------------------------------------
 object MainActivity {
   final val TAG = "SpotMint Activity"
+
+  final val PREFS_ZOOM_LEVEL = "zoom_level"
+
 }
 class MainActivity extends MapActivity with TypedActivity with RunningStateAware with Users {
   import MainActivity._
@@ -55,11 +59,17 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   var mapController:MapController = _
 
   val overlay = new CustomOverlay( this )
+  overlay.onZoomLevelChanged = { zoomLevel =>
+    val edit = sharedPreferences.edit()
+    edit.putInt( PREFS_ZOOM_LEVEL, zoomLevel )
+    edit.commit()
+  }
 
 
   var peersView:ListView = _
 
 
+  lazy val sharedPreferences = getSharedPreferences( "MainActivity", Context.MODE_PRIVATE )
 
   // ------------------------------------------------------------
   // Receiver
@@ -183,22 +193,10 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
 
     mapController = mapView.getController
-    mapController.setZoom(14)
+
+    mapController.setZoom( sharedPreferences.getInt( PREFS_ZOOM_LEVEL, 14 ) )
 
 
-    // Share Button ------------------------------------
-    findView(TR.share_button).setOnClickListener( new View.OnClickListener{
-      def onClick( v:View ){
-        val shareIntent = new Intent(Intent.ACTION_SEND)
-        shareIntent.setType("text/plain")
-        val currentChannel = findView(TR.channel_button).getText
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format( currentChannel ) )
-        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentChannel, currentChannel ) )
-
-        context.startActivity(shareIntent);
-
-      }
-    })
 
     // Channel Button ------------------------------------
     findView(TR.channel_button).setOnClickListener( new View.OnClickListener{
@@ -346,6 +344,15 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     item.getItemId match {
       // ------------------------------------------------------------
       case R.id.menu_about =>
+        val webview = new WebView( context )
+        webview.setBackgroundColor( Color.argb( 180, 0,0,0 ) )
+        webview.loadUrl( getString( R.string.about_url ) )
+        val pw = new PopupWindow( webview, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true )
+        pw.setBackgroundDrawable(new BitmapDrawable())
+        pw.setOutsideTouchable(true)
+        pw.setAnimationStyle( android.R.style.Animation_Dialog )
+        pw.showAtLocation( mapView, Gravity.CENTER, 0, 0 )
+
         true
 
       // ------------------------------------------------------------
@@ -394,6 +401,17 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
         true
 
+      // ------------------------------------------------------------
+      case R.id.menu_share =>
+        val shareIntent = new Intent(Intent.ACTION_SEND)
+        shareIntent.setType("text/plain")
+        val currentChannel = findView(TR.channel_button).getText
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format( currentChannel ) )
+        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentChannel, currentChannel ) )
+
+        context.startActivity(shareIntent)
+
+        true
 
       // ------------------------------------------------------------
       case R.id.menu_signout =>

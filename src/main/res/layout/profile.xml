@@ -60,7 +60,7 @@
                android:layout_toRightOf="@id/profile_name"
                android:layout_marginLeft="10dip"
 
-               android:src="@drawable/users"
+               android:src="@drawable/profile"
 
 
 

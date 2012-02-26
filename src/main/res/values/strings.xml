@@ -1,9 +1,13 @@
 <resources>
+    <string name="nexus_ws_url">wss://nexus.ws/json-1.0/</string>
+    <string name="about_url">http://spotmint.com/web/about.html</string>
+
     <string name="app_name">SpotMint</string>
 
     <string name="menu_about">About</string>
     <string name="menu_profile">Profile</string>
     <string name="menu_signout">SignOut</string>
+    <string name="menu_share">Share</string>
 
     <string name="profile_name">Name</string>
     <string name="profile_email">Email</string>
