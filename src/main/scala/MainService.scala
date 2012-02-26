@@ -6,12 +6,13 @@ import android.util.Log
 
 import Serializer.serialize
 import android.content.{Context, Intent}
-import android.location.{Location, LocationListener, LocationManager}
 import android.os.{Bundle, Binder}
 import java.io.Serializable
 import java.net.URI
 import util.Random
 import android.app.{NotificationManager, PendingIntent, Notification, Service}
+import android.location.{Criteria, Location, LocationListener, LocationManager}
+import java.util.{Timer, TimerTask}
 
 
 object MainService {
@@ -163,6 +164,9 @@ class MainService extends Service with RunningStateAware{
   // Location MGMT
   // ------------------------------------------------------------
   var locationManager:LocationManager = _
+
+  lazy val locationTimer = new Timer()
+
   val locationListener = new LocationListener {
     override def onLocationChanged(location: Location) {
       val coord = Coordinate( location )
@@ -172,6 +176,7 @@ class MainService extends Service with RunningStateAware{
       broadcast( LOCATION_MESSAGE, coord )
     }
 
+
     override def onStatusChanged(p1: String, p2: Int, p3: Bundle) {
     }
 
@@ -179,6 +184,7 @@ class MainService extends Service with RunningStateAware{
 
     override def onProviderDisabled(p1: String) {}
   }
+
 
   def startLocation(){
     locationManager = getSystemService(Context.LOCATION_SERVICE).asInstanceOf[LocationManager]
@@ -189,24 +195,37 @@ class MainService extends Service with RunningStateAware{
     currentUser = currentUser.update( coord )
 
     registerHighAccuracyLocationManager()
+
+
+    locationTimer.schedule( new TimerTask {
+      def run() { client.send( Publish( currentChannel, currentUser.coord ) ) }
+    }, 60*1000, 3*60*1000 )
+  }
+
+  def stopLocation(){
+    locationManager.removeUpdates( locationListener )
+    locationTimer.cancel()
   }
 
   @inline private def registerHighAccuracyLocationManager(){
     Log.v(TAG, "High Accurracy Location"  )
-
-    val minTimeMilisec = 1000*60
-    val minDistanceMeter = 10
-    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, minTimeMilisec, minDistanceMeter, locationListener )
-    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTimeMilisec, minDistanceMeter, locationListener )
+    val minTimeMilisec = 0
+    val minDistanceMeter = 0
+    val criteria = new Criteria()
+    criteria.setAccuracy( Criteria.ACCURACY_FINE )
+    locationManager.requestLocationUpdates( locationManager.getBestProvider( criteria, true ), minTimeMilisec, minDistanceMeter, locationListener )
   }
 
   @inline private def registerLowAccuracyLocationManager(){
     Log.v(TAG, "Low Accurracy Location"  )
-
     val minTimeMilisec = 1000*60*3
-    val minDistanceMeter = 50
-    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTimeMilisec, minDistanceMeter, locationListener )
+    val minDistanceMeter = 0
+    val criteria = new Criteria()
+    criteria.setPowerRequirement( Criteria.POWER_LOW )
+    //criteria.setAccuracy( Criteria.ACCURACY_FINE )
+    locationManager.requestLocationUpdates( locationManager.getBestProvider( criteria, true ), minTimeMilisec, minDistanceMeter, locationListener )
   }
+
 
   // ------------------------------------------------------------
   // Broadcast MGMT
@@ -320,7 +339,7 @@ class MainService extends Service with RunningStateAware{
     client.send( UnsubscribChannel( currentChannel ) )
     state = RunningState.DYING
     removeNotificationBar()
-    locationManager.removeUpdates( locationListener )
+    stopLocation()
     client.close()
   }
 
