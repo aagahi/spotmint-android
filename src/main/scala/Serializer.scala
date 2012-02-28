@@ -1,16 +1,17 @@
 package com.spotmint.android
 
 import org.json.JSONObject
+import java.util.Locale
 
 object Serializer {
   
   implicit def serialize( message:WSUpMessage ):String =
     message match {
-      case PublisherUpdate( data ) => """{"PublisherUpdate":{"data":{"profile":{"name":"%s","email":"%s","status":"%s"}}}}""" format( data.name, data.email, data.status )
+      case PublisherUpdate( data ) => """{"PublisherUpdate":{"data":{"profile":{"name":"%s","email":"%s","status":"%s"}}}}""" formatLocal( Locale.US, data.name, data.email, data.status )
       case CreateChannel() => """{"CreateChannel":{}}"""
       case SubscribChannel( channel ) => """{"SubscribChannel":{"channel":"%s"}}""" format ( channel )
       case UnsubscribChannel(channel) => """{"UnsubscribChannel":{"channel":"%s"}}""" format ( channel )
-      case Publish(channel, data) => """{"Publish":{"channel":"%s","data":{"coord":{"lat":%f,"lng":%f,"acc":%f}}}}""" format ( channel, data.lat, data.lng, data.acc )
+      case Publish(channel, data) => """{"Publish":{"channel":"%s","data":{"coord":{"lat":%f,"lng":%f,"acc":%f}}}}""" formatLocal ( Locale.US, channel, data.lat, data.lng, data.acc )
       //case PublishTo(channel, pubIds, data) => ""
     }
 
