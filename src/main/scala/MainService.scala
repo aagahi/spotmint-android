@@ -48,7 +48,6 @@ class MainService extends Service with RunningStateAware{
 
 
   var currentUser:User = _
-  //def currentCoord = currentUser.coord
 
   lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )
   var currentChannel = DEFAULT_CHANNEL_NAME
@@ -168,34 +167,58 @@ class MainService extends Service with RunningStateAware{
   lazy val locationTimer = new Timer()
 
   val locationListener = new LocationListener {
+    var bestLocation:Location = _
     override def onLocationChanged(location: Location) {
-      val coord = Coordinate( location )
-      currentUser = currentUser.update( coord )
-      Log.v(TAG, "Client state " + client.clientThread.isAlive + " / " + client.clientThread.running.get )
-      client.send( Publish( currentChannel, coord ) )
-      broadcast( LOCATION_MESSAGE, coord )
+      if( bestLocation != null ){
+        if( location.getAccuracy < bestLocation.getAccuracy ) bestLocation = location
+        else if( location.getTime > bestLocation.getTime + 30*1000 ) bestLocation = location
+        else if( location.getProvider == bestLocation.getProvider && location.distanceTo( bestLocation ) > 10 ) bestLocation = location
+      }
+      else bestLocation = location
+
+      if( bestLocation == location ){
+        val coord = Coordinate( bestLocation )
+        currentUser = currentUser.update( coord )
+        client.send( Publish( currentChannel, coord ) )
+        broadcast( LOCATION_MESSAGE, coord )
+      }
+
     }
 
 
-    override def onStatusChanged(p1: String, p2: Int, p3: Bundle) {
+    override def onStatusChanged( provider: String, status: Int, extras: Bundle) {
+      Log.v( TAG, "Location Manager provider %s status changed %d - %s" format( provider, status, extras.toString ) )
     }
 
-    override def onProviderEnabled(p1: String) {}
+    override def onProviderEnabled( provider: String) {
+      Log.v( TAG, "Location Manager provider %s enabled" format provider  )
+    }
 
-    override def onProviderDisabled(p1: String) {}
+    override def onProviderDisabled( provider: String) {
+      Log.v( TAG, "Location Manager provider %s disabled" format provider  )
+    }
   }
 
 
   def startLocation(){
     locationManager = getSystemService(Context.LOCATION_SERVICE).asInstanceOf[LocationManager]
-    val lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
 
-    val coord = Coordinate( lastKnownLocation )
+    val gps = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+    val net = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
 
-    currentUser = currentUser.update( coord )
+    val location =  if( gps != null && net != null ){
+                      if( gps.getTime > net.getTime ) gps else net
+                    } 
+                    else if( gps != null ) gps
+                    else if( net != null ) net
+                    else null
+    
+    if( location != null ){
+      val coord = Coordinate( location )
+      currentUser = currentUser.update( coord )
+    }
 
-    registerHighAccuracyLocationManager()
-
+    registerLowAccuracyLocationManager()
 
     locationTimer.schedule( new TimerTask {
       def run() { client.send( Publish( currentChannel, currentUser.coord ) ) }
@@ -209,21 +232,13 @@ class MainService extends Service with RunningStateAware{
 
   @inline private def registerHighAccuracyLocationManager(){
     Log.v(TAG, "High Accurracy Location"  )
-    val minTimeMilisec = 0
-    val minDistanceMeter = 0
-    val criteria = new Criteria()
-    criteria.setAccuracy( Criteria.ACCURACY_FINE )
-    locationManager.requestLocationUpdates( locationManager.getBestProvider( criteria, true ), minTimeMilisec, minDistanceMeter, locationListener )
+    locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 0, 5, locationListener )
+    locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 10*1000, 10, locationListener )
   }
 
   @inline private def registerLowAccuracyLocationManager(){
     Log.v(TAG, "Low Accurracy Location"  )
-    val minTimeMilisec = 1000*60*3
-    val minDistanceMeter = 0
-    val criteria = new Criteria()
-    criteria.setPowerRequirement( Criteria.POWER_LOW )
-    //criteria.setAccuracy( Criteria.ACCURACY_FINE )
-    locationManager.requestLocationUpdates( locationManager.getBestProvider( criteria, true ), minTimeMilisec, minDistanceMeter, locationListener )
+    locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 10*1000, 10, locationListener )
   }
 
 
