@@ -17,6 +17,10 @@ class CustomOverlay( usersHolder:Users ) extends Overlay {
   var currentZoomLevel:Int = 0
   var onZoomLevelChanged:Int=>Unit = { _ => }
 
+  def clearUserBitmap( user:User ){
+    userIdBitmap -= user.id
+  }
+
   override def draw( canvas:Canvas, mapView:MapView, shadow:Boolean ) {
     val zoomLevel = mapView.getZoomLevel
     if( currentZoomLevel != zoomLevel ){

@@ -29,7 +29,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:gravity="bottom"
+                android:layout_centerVertical="true"
 
 
                 android:background="#00000000"
@@ -38,7 +38,10 @@
                 android:textColor="#fff"
                 android:textSize="18dip"
 
-                android:padding="10dip"
+                android:paddingTop="5dip"
+                android:paddingBottom="5dip"
+                android:paddingRight="10dip"
+                android:paddingLeft="10dip"
 
                 style="@style/small_black_shadow"
                 >
@@ -48,10 +51,10 @@
         <Button android:id="@+id/peers_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+
                 android:layout_centerVertical="true"
                 android:layout_alignParentRight="true"
 
-                android:gravity="bottom"
 
                 android:background="#00000000"
 
@@ -65,7 +68,10 @@
 
                 style="@style/small_black_shadow"
 
-                android:padding="10dip"
+                android:paddingTop="8dip"
+                android:paddingBottom="8dip"
+                android:paddingRight="10dip"
+                android:paddingLeft="15dip"
                 >
 
         </Button>

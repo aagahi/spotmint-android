@@ -7,6 +7,7 @@ import android.content._
 import android.os.Bundle
 import android.graphics.Color
 import android.view._
+import animation.AnimationUtils
 import com.google.android.maps.MapView
 import android.util.{AttributeSet, Log}
 import android.view.GestureDetector.{OnGestureListener, OnDoubleTapListener}
@@ -58,6 +59,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   var mapView:GestureMapView = _
   var mapController:MapController = _
 
+
   val overlay = new CustomOverlay( this )
   overlay.onZoomLevelChanged = { zoomLevel =>
     val edit = sharedPreferences.edit()
@@ -65,6 +67,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     edit.commit()
   }
 
+  override def isRouteDisplayed = false
 
   var peersView:ListView = _
 
@@ -109,7 +112,16 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           updateUI()
 
         case MainService.CHANNEL_MESSAGE =>
-          findView(TR.channel_button).setText( "#"+extra.asInstanceOf[String] )
+          val channelName = extra.asInstanceOf[String]
+          val channelButton = findView(TR.channel_button)
+          channelButton.setText( "#"+ channelName )
+          
+          if( channelName == MainService.DEFAULT_CHANNEL_NAME ){
+            val textGlowAnim = AnimationUtils.loadAnimation(context, R.anim.text_glow )
+            channelButton.startAnimation( textGlowAnim )
+          }
+
+
           clearAndKeepCurrentUser()
           updateUI()
 
@@ -147,13 +159,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     findView(TR.peers_button).setText( users.length.toString )
     mapView.invalidate()
   }
-
-
-  // ------------------------------------------------------------
-  // Misc
-  // ------------------------------------------------------------
-  
-  override def isRouteDisplayed = false
 
 
   // ------------------------------------------------------------
@@ -199,9 +204,11 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
 
     // Channel Button ------------------------------------
-    findView(TR.channel_button).setOnClickListener( new View.OnClickListener{
+    val channelButton = findView(TR.channel_button)
+    channelButton.setOnClickListener( new View.OnClickListener{
       
       def onClick( v:View ){
+        channelButton.clearAnimation()
         val channelView = context.getLayoutInflater.inflate( R.layout.channel, null ).asInstanceOf[ViewGroup]
         val v = TypedResource.view2typed( channelView )
 
@@ -212,7 +219,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         pw.showAtLocation( mapView, Gravity.CENTER_HORIZONTAL|Gravity.TOP, 0, 100 )
 
         val editViewChannelName = v.findView(TR.channel_name)
-        editViewChannelName.setText( findView(TR.channel_button).getText.toString.substring( 1 ) )
+        editViewChannelName.setText( channelButton.getText.toString.substring( 1 ) )
         editViewChannelName.requestFocusFromTouch()
 
         def update() = {
@@ -326,6 +333,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
     currentUser.foreach{ user =>
       sendWSMessageToService( PublisherUpdate( user.publisher ) )
+      overlay.clearUserBitmap( user )
       updateUI()
     }
 
