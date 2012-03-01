@@ -169,6 +169,15 @@ class MainService extends Service with RunningStateAware{
   val locationListener = new LocationListener {
     var bestLocation:Location = _
     override def onLocationChanged(location: Location) {
+      
+      // check if we might have a more accurate gps loc in beetween
+      if( location.getProvider == LocationManager.NETWORK_PROVIDER ){
+        val gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        if( gpsLocation != null ){
+          if( location.getTime > gpsLocation.getTime + 30*1000 ) bestLocation = gpsLocation
+        }
+      }
+      
       if( bestLocation != null ){
         if( location.getAccuracy < bestLocation.getAccuracy ) bestLocation = location
         else if( location.getTime > bestLocation.getTime + 30*1000 ) bestLocation = location
