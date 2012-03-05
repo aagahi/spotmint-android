@@ -70,6 +70,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   override def isRouteDisplayed = false
 
   var peersView:ListView = _
+  var peersPopup:PopupWindow = null
 
 
   lazy val sharedPreferences = getSharedPreferences( "MainActivity", Context.MODE_PRIVATE )
@@ -97,16 +98,18 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
             case Published( _, pubId, data ) =>
               updateCoord( pubId, data )
-              
+              updateUI( false )
+
 
             case PublisherUpdated( _, pubId, data) =>
               updatePublisherByIdOrAppendNew( pubId, data )
+              updateUI()
+
 
             case _ =>
           }
           
-          updateUI()
-          
+
         case MainService.USER_MESSAGE =>
           updateUserOrAppendNew( extra.asInstanceOf[User] )
           updateUI()
@@ -153,9 +156,9 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // Marker mgmt
   // ------------------------------------------------------------
 
-  private def updateUI(){
-    users.find( _.tracked ).foreach{ user => mapController.animateTo( user.coord ) }
-    reloadPeersViewAdapter()
+  private def updateUI( reloadLoadListView:Boolean = true ){
+    users.find( _.tracked ).foreach{ user => if( !user.coord.isUndefined ) mapController.animateTo( user.coord ) }
+    if( reloadLoadListView ) reloadPeersViewAdapter()
     findView(TR.peers_button).setText( users.length.toString )
     mapView.invalidate()
   }
@@ -250,30 +253,49 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
     // Peers Button ------------------------------------
 
-    var pw:PopupWindow = null
 
     findView(TR.peers_button).setOnClickListener( new View.OnClickListener{
 
       def onClick( v:View ){
-        if( pw == null ){
+        if( peersPopup == null ){
           peersView = getLayoutInflater.inflate( R.layout.peers, null ).asInstanceOf[ListView]
 
           reloadPeersViewAdapter()
 
-          pw = new PopupWindow( peersView, 160, mapView.getHeight-44, false )
-          pw.setAnimationStyle(android.R.style.Animation_Translucent)
-          pw.showAtLocation( mapView, Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
+          peersPopup = new PopupWindow( peersView, 160, mapView.getHeight-44, false )
+          peersPopup.setBackgroundDrawable(new BitmapDrawable())
 
+          peersPopup.setAnimationStyle(android.R.style.Animation_Translucent)
+          peersPopup.showAtLocation( mapView, Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
+          v.setSelected( true )
         }
         else {
-          pw.dismiss()
-          pw = null
-          peersView = null
+          removePeerPopup()
         }
-        v.setSelected( !v.isSelected )
       }
     })
+  }
 
+
+
+  // ------------------------------------------------------------
+  private def removePeerPopup() {
+    peersPopup.dismiss()
+    peersPopup = null
+    peersView = null
+    findView(TR.peers_button).setSelected( false )
+  }
+
+  // ------------------------------------------------------------
+  // Handle back button in case peer popup is visible
+  override def onKeyDown(keyCode:Int, event:KeyEvent ) = {
+    if( peersPopup != null && keyCode == KeyEvent.KEYCODE_BACK && event.getRepeatCount() == 0) {
+      removePeerPopup()
+      true
+    }
+    else {
+      super.onKeyDown( keyCode, event )
+    }
   }
 
 
@@ -442,14 +464,15 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   // Peers Adapter
   // ------------------------------------------------------------
   private def reloadPeersViewAdapter() {
-    if( peersView != null ) peersView.setAdapter( new PeersAdapter( R.layout.peers_row, users.toArray ) )
+    if( peersView != null ){
+      peersView.setAdapter( new PeersAdapter( R.layout.peers_row, users.toArray ) )
+    }
   }
   class PeersAdapter( resourceId:Int, peers:Array[User])(implicit context:Context)
     extends ArrayAdapter[User]( context, resourceId, peers ) {
 
     var trackedView:Option[View] = None
-    final val TRACKED_COLOR = Color.parseColor( "#80800000" )
-    
+
     
     override def getView( position:Int, convertView:View, parent:ViewGroup  ):View = {
       val view =  if( convertView != null ) convertView
@@ -458,7 +481,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
       if( user.tracked ){
         trackedView = Some(view)
-        view.setBackgroundColor( TRACKED_COLOR )
+        view.setBackgroundResource( R.drawable.peer_selected_background )
       } 
       else view.setBackgroundColor( Color.TRANSPARENT )
 
@@ -470,10 +493,12 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           user.tracked = !user.tracked
           trackedView = if( user.tracked ) Some(view) else None
 
-          view.setBackgroundColor(  if( user.tracked ) TRACKED_COLOR else Color.TRANSPARENT )
+          if( user.tracked ) view.setBackgroundResource( R.drawable.peer_selected_background )
+          else view.setBackgroundColor( Color.TRANSPARENT )
+
           for( u <- users; if( u != user ) ) u.tracked = false
 
-          updateUI()
+          updateUI( false )
         }
 
       })

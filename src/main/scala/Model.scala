@@ -98,7 +98,9 @@ object Coordinate {
 
 }
 
-case class Coordinate(lat: Double, lng: Double, acc: Double, alt: Option[Double], altAcc: Option[Double], heading: Option[Double], speed: Option[Double]) extends Serializable
+case class Coordinate(lat: Double, lng: Double, acc: Double, alt: Option[Double], altAcc: Option[Double], heading: Option[Double], speed: Option[Double]) extends Serializable {
+  def isUndefined = lat == 0 && lng == 0
+}
 
 // ------------------------------------------------------------
 // WS Message

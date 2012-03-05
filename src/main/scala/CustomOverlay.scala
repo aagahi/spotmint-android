@@ -29,36 +29,41 @@ class CustomOverlay( usersHolder:Users ) extends Overlay {
     }
     if( !shadow  )
       usersHolder.users.foreach{ user =>
-        userIdBitmap.get( user.id ) match {
-          case Some( bitmap)  =>
-            val pixel = mapView.getProjection.toPixels( user.coord, null )
+        if( !user.coord.isUndefined ) {
 
-            val x = pixel.x-bitmap.getWidth/2
-            val y = pixel.y-bitmap.getHeight
-            val w = bitmap.getWidth
-            val h = bitmap.getHeight
+          userIdBitmap.get( user.id ) match {
+            case Some( bitmap)  =>
+              val pixel = mapView.getProjection.toPixels( user.coord, null )
 
-            val paint = new Paint()
-            paint.setColor( Color.BLACK )
-            paint.setStyle( Paint.Style.STROKE )
-            paint.setShadowLayer( 4, 2, 2, Color.parseColor( "#80000000") )
-            canvas.drawRect( x, y, x+w, y+h, paint )
+              val x = pixel.x-bitmap.getWidth/2
+              val y = pixel.y-bitmap.getHeight
+              val w = bitmap.getWidth
+              val h = bitmap.getHeight
 
-            canvas.drawBitmap( bitmap, x, y, null )
+              val paint = new Paint()
+              paint.setColor( Color.BLACK )
+              paint.setStyle( Paint.Style.STROKE )
+              paint.setShadowLayer( 4, 2, 2, Color.parseColor( "#80000000") )
+              canvas.drawRect( x, y, x+w, y+h, paint )
 
-            paint.clearShadowLayer()
-            canvas.drawRect( x, y, x+w, y+h, paint )
+              canvas.drawBitmap( bitmap, x, y, null )
 
-            paint.setStyle( Paint.Style.FILL )
-            paint.setAntiAlias( true )
-            canvas.drawCircle( pixel.x, pixel.y, 3, paint )
+              paint.clearShadowLayer()
+              canvas.drawRect( x, y, x+w, y+h, paint )
 
-          case None =>
-            implicit val context = mapView.getContext
-            ImageLoader.load( user.getAvatarURL( 40 ) ){ userBitmap( mapView, user, _ ) }
-        }
+              paint.setStyle( Paint.Style.FILL )
+              paint.setAntiAlias( true )
+              canvas.drawCircle( pixel.x, pixel.y, 3, paint )
 
-      }
+            case None =>
+              implicit val context = mapView.getContext
+              ImageLoader.load( user.getAvatarURL( 40 ) ){ userBitmap( mapView, user, _ ) }
+
+          } // match
+
+        } // if
+
+      } // foreach
   }
 
 

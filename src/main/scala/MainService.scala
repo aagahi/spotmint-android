@@ -144,6 +144,9 @@ class MainService extends Service with RunningStateAware{
     }
    
     override def onStop( client:Client ){
+      susbscribeds = Nil
+      publisheds = Nil
+
       if( state == RunningState.RUNNING ){
         Thread.sleep( reconnectSleep )
         reconnectSleep = if( reconnectSleep >= MAX_RECONNECT_SLEEP ) reconnectSleep else reconnectSleep + 1000
