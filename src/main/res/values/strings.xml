@@ -14,6 +14,7 @@
     <string name="profile_status">Status</string>
 
     <string name="channel_name">channel</string>
+    <string name="channel_tap_to_change">tap-to-change</string>
 
     <string name="update_button">Update</string>
     <string name="clear_button">Clear</string>

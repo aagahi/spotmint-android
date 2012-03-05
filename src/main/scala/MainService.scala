@@ -30,8 +30,6 @@ object MainService {
   final val LOW_POWER_USAGE = 0
   final val HIGH_POWER_USAGE = 2
   
-  final val DEFAULT_CHANNEL_NAME = "tap to change"
-
   final val PREFS_CHANNEL_NAME = "channel"
 
   final val PREFS_USER_NAME = "user.name"
@@ -50,7 +48,7 @@ class MainService extends Service with RunningStateAware{
   var currentUser:User = _
 
   lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )
-  var currentChannel = DEFAULT_CHANNEL_NAME
+  var currentChannel:String = _
 
 
 
@@ -350,7 +348,7 @@ class MainService extends Service with RunningStateAware{
     state = RunningState.RUNNING
 
     currentSession = sharedPreferences.getString( PREFS_SESSION, "" )
-    currentChannel = sharedPreferences.getString( PREFS_CHANNEL_NAME, DEFAULT_CHANNEL_NAME )
+    currentChannel = sharedPreferences.getString( PREFS_CHANNEL_NAME, getString( R.string.channel_tap_to_change ) )
     currentUser = loadUser()
 
     showNotiticationBar()

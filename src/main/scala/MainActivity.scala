@@ -46,10 +46,9 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
 // ------------------------------------------------------------
 object MainActivity {
   final val TAG = "SpotMint Activity"
-
   final val PREFS_ZOOM_LEVEL = "zoom_level"
-
 }
+
 class MainActivity extends MapActivity with TypedActivity with RunningStateAware with Users {
   import MainActivity._
   import Coordinate.coordinateToGeoPoint
@@ -118,8 +117,8 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           val channelName = extra.asInstanceOf[String]
           val channelButton = findView(TR.channel_button)
           channelButton.setText( "#"+ channelName )
-          
-          if( channelName == MainService.DEFAULT_CHANNEL_NAME ){
+
+          if( channelName == getString( R.string.channel_tap_to_change ) ){
             val textGlowAnim = AnimationUtils.loadAnimation(context, R.anim.text_glow )
             channelButton.startAnimation( textGlowAnim )
           }
@@ -205,7 +204,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     mapController.setZoom( sharedPreferences.getInt( PREFS_ZOOM_LEVEL, 14 ) )
 
 
-
     // Channel Button ------------------------------------
     val channelButton = findView(TR.channel_button)
     channelButton.setOnClickListener( new View.OnClickListener{
@@ -252,8 +250,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     })
 
     // Peers Button ------------------------------------
-
-
     findView(TR.peers_button).setOnClickListener( new View.OnClickListener{
 
       def onClick( v:View ){
