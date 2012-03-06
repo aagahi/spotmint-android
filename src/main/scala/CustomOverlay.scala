@@ -4,6 +4,9 @@ package com.spotmint.android
 import com.google.android.maps.{MapView, Overlay}
 import android.graphics._
 
+object CustomOverlay {
+  val SHADOW_COLOR = Color.parseColor( "#80000000")
+}
 class CustomOverlay( usersHolder:Users ) extends Overlay {
   import Coordinate.coordinateToGeoPoint
 
@@ -43,7 +46,7 @@ class CustomOverlay( usersHolder:Users ) extends Overlay {
               val paint = new Paint()
               paint.setColor( Color.BLACK )
               paint.setStyle( Paint.Style.STROKE )
-              paint.setShadowLayer( 4, 2, 2, Color.parseColor( "#80000000") )
+              paint.setShadowLayer( 4, 2, 2, CustomOverlay.SHADOW_COLOR )
               canvas.drawRect( x, y, x+w, y+h, paint )
 
               canvas.drawBitmap( bitmap, x, y, null )

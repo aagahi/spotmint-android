@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:orientation="vertical"
+              android:background="@drawable/balloon_overlay"
+
+              android:paddingLeft="10dip"
+              android:paddingRight="10dip"
+              android:paddingTop="5dip"
+              android:paddingBottom="25dip"
+        >
+
+    <TextView android:layout_height="wrap_content"
+              android:layout_width="wrap_content"
+              android:id="@+id/callout_title"
+              android:textSize="20dip"
+              android:textColor="#fff"
+              android:background="#00000000"
+
+              style="@style/small_black_shadow"
+
+           />
+    <TextView android:layout_height="wrap_content"
+              android:layout_width="wrap_content"
+              android:id="@+id/callout_subtitle"
+              android:textSize="14dip"
+              android:textColor="#fff"
+              android:background="#00000000"
+            />
+</LinearLayout>

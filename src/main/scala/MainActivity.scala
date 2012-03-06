@@ -25,11 +25,49 @@ import android.webkit.WebView
 // ------------------------------------------------------------
 // ------------------------------------------------------------
 class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
-  
+  import Coordinate._
+
+  var usersHolder:Users = new Users{}
+
   val gestureDetector = new GestureDetector( new OnGestureListener{
     def onDown(e: MotionEvent) = false
     def onShowPress(e: MotionEvent) {}
-    def onSingleTapUp(e: MotionEvent) = false
+
+    def onSingleTapUp(e: MotionEvent) = {
+
+      val x = e.getX
+      val y = e.getY
+
+      val tappedUser = usersHolder.users.filter { user =>
+        val userPoint = getProjection.toPixels( user.coord, null )
+        userPoint.x > x - 20 && userPoint.x < x+40 && userPoint.y > y - 20 && userPoint.y < y + 20 
+      }
+      
+      tappedUser.headOption match {
+        case Some( user ) =>
+          val userPoint = getProjection.toPixels( user.coord, null )
+          val callout = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE).asInstanceOf[LayoutInflater].inflate( R.layout.callout, null ).asInstanceOf[LinearLayout]
+          val v = TypedResource.view2typed( callout )
+          v.findView( TR.callout_title ).setText( user.name )
+          v.findView( TR.callout_subtitle ).setText( user.status )
+
+          val pw = new PopupWindow( callout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true )
+
+          pw.setBackgroundDrawable(new BitmapDrawable())
+          pw.setOutsideTouchable(true)
+          pw.setAnimationStyle( android.R.style.Animation_Dialog )
+
+          callout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+
+          pw.showAtLocation( GestureMapView.this, Gravity.NO_GRAVITY, userPoint.x.toInt-callout.getMeasuredWidth/2, userPoint.y.toInt-15-callout.getMeasuredHeight )
+
+          true
+
+        case _ => false
+
+      }
+    }
+
     def onScroll(e1: MotionEvent, e2: MotionEvent, dx: Float, dy: Float) = false
     def onLongPress(e: MotionEvent) {}
     def onFling(e1: MotionEvent, e2: MotionEvent, dx: Float, dy: Float) = false
@@ -129,7 +167,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
         case MainService.LOCATION_MESSAGE =>
           updateCoord( User.SELF_USER_ID, extra.asInstanceOf[Coordinate] )
-          updateUI()
+          updateUI( false )
 
       }
     }
@@ -187,9 +225,11 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
 
     mapView = findView(TR.mapview)
+    mapView.usersHolder = this
     mapView.setBuiltInZoomControls( true )
     mapView.setStreetView(true)
     mapView.getOverlays.add(overlay)
+
 
 
     mapView.gestureDetector.setOnDoubleTapListener( new OnDoubleTapListener{
