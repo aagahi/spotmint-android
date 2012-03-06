@@ -24,6 +24,7 @@ object MainService {
   final val USER_MESSAGE = "MainService.USER_MESSAGE"
   final val CHANNEL_MESSAGE = "MainService.CHANNEL_MESSAGE"
   final val BACKGROUND_POLICY_MESSAGE = "MainService.BACKGROUND_POLICY_MESSAGE"
+  final val RECONNECTING_MESSAGE = "MainService.RECONNECTING_MESSAGE"
 
   final val WS_EXTRA = "extra"
 
@@ -99,12 +100,8 @@ class MainService extends Service with RunningStateAware{
   val client = new Client( new WebSocketEventHandler{
     override def onOpen( client:Client ) {
       reconnectSleep = 0
-      if( currentSession.length() == 0 || lastNetworkActivity < System.currentTimeMillis - sessionTimeoutSec*1000 ){
-        // shound send if timeout deconnection - 300sec
-        client.send( PublisherUpdate( currentUser.toPublisher ) )
-        client.send( SubscribChannel( currentChannel ) )
-       }
-
+      client.send( PublisherUpdate( currentUser.toPublisher ) )
+      client.send( SubscribChannel( currentChannel ) )
       client.send( Publish( currentChannel, currentUser.coord ) )
     }
     override def onMessage( client:Client, text:String ){
@@ -150,6 +147,7 @@ class MainService extends Service with RunningStateAware{
         reconnectSleep = if( reconnectSleep >= MAX_RECONNECT_SLEEP ) reconnectSleep else reconnectSleep + 1000
         Log.i( "WS Stop", "Reconnect " + nexusURI.toString )
         client.connect( nexusURI, Client.ConnectionOption.DEFAULT  )
+        broadcast( RECONNECTING_MESSAGE )
       }
 
     }
@@ -190,7 +188,7 @@ class MainService extends Service with RunningStateAware{
         val coord = Coordinate( bestLocation )
         currentUser = currentUser.update( coord )
         client.send( Publish( currentChannel, coord ) )
-        broadcast( LOCATION_MESSAGE, coord )
+        broadcast( LOCATION_MESSAGE, Some(coord) )
       }
 
     }
@@ -255,10 +253,16 @@ class MainService extends Service with RunningStateAware{
   // ------------------------------------------------------------
   // Broadcast MGMT
   // ------------------------------------------------------------
+  private def broadcast( messageType:String ){
+    broadcast( messageType, None )
+  }
   private def broadcast( messageType:String, message:Serializable ){
+    broadcast( messageType, Some(message) )
+  }
+  private def broadcast( messageType:String, message:Option[Serializable]  ){
     Log.v(TAG, "Broadcast %s => %s" format ( messageType, message.toString ) )
     val broadCastIntent = new Intent( messageType )
-    broadCastIntent.putExtra( WS_EXTRA, message )
+    message.foreach( message => broadCastIntent.putExtra( WS_EXTRA, message ) )
     sendBroadcast( broadCastIntent )
   }
   // ------------------------------------------------------------

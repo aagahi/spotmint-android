@@ -119,9 +119,9 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     def onReceive( context:Context, intent:Intent ){
 
 
+
       val extra = intent.getSerializableExtra(MainService.WS_EXTRA)
       
-      Log.v( TAG, "Extra %s / Action %s" format ( extra.toString, intent.getAction ))
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
@@ -168,6 +168,11 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         case MainService.LOCATION_MESSAGE =>
           updateCoord( User.SELF_USER_ID, extra.asInstanceOf[Coordinate] )
           updateUI( false )
+
+
+        case MainService.RECONNECTING_MESSAGE =>
+          clearAndKeepCurrentUser()
+          updateUI()
 
       }
     }
@@ -219,6 +224,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     registerReceiver( receiver, new IntentFilter( MainService.LOCATION_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.USER_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.CHANNEL_MESSAGE ) )
+    registerReceiver( receiver, new IntentFilter( MainService.RECONNECTING_MESSAGE ) )
 
     val serviceIntent = new Intent( context, classOf[MainService] )
     startService( serviceIntent )
