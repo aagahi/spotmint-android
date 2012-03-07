@@ -116,9 +116,6 @@ class MainService extends Service with RunningStateAware{
           saveCurrentSession()
 
         case subscribedChannel:SubscribedChannel =>
-          // TODO: Use publishTo instead
-          client.send( Publish( currentChannel, currentUser.coord ) )
-
           susbscribeds = subscribedChannel :: susbscribeds
 
         case UnsubscribedChannel(channel, pubId) =>
