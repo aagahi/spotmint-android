@@ -313,6 +313,8 @@ class MainService extends Service with RunningStateAware{
             client.send( Publish( currentChannel, currentUser.coord ) )
 
           case _ =>
+            // TODO: in case of Unsubscrib there is no garanty the server recieve the mesg if network error occurs client might still be connected
+            // We should if there is a way to have better underlying delivery system
             client.send( msg )
         }
 
