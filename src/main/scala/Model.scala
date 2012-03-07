@@ -87,6 +87,7 @@ case class User(id: Int, name: String, email: String, status: String, coord: Coo
 
 object Coordinate {
   implicit def coordinateToGeoPoint( coord:Coordinate ) = new GeoPoint( (coord.lat * 1E6).toInt, (coord.lng * 1E6).toInt )
+  implicit def geoPointToCoodinate( geo:GeoPoint ) = Coordinate( geo.getLatitudeE6.toDouble/1E6, geo.getLongitudeE6.toDouble/1E6, 0.0 )
 
   val NO_COORDINATE = Coordinate( 0, 0, 0 )
 
