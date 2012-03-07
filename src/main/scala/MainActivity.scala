@@ -19,6 +19,7 @@ import android.graphics.drawable.BitmapDrawable
 import inputmethod.{EditorInfo}
 import android.content.Context._
 import android.webkit.WebView
+import android.widget.PopupWindow.OnDismissListener
 
 
 // ------------------------------------------------------------
@@ -257,15 +258,15 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
       def onClick( v:View ){
         channelButton.clearAnimation()
         val channelView = context.getLayoutInflater.inflate( R.layout.channel, null ).asInstanceOf[ViewGroup]
-        val v = TypedResource.view2typed( channelView )
+        val channelViewTyped = TypedResource.view2typed( channelView )
 
         val pw = new PopupWindow( channelView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true )
         pw.setBackgroundDrawable(new BitmapDrawable())
         pw.setOutsideTouchable(true)
         pw.setAnimationStyle( android.R.style.Animation_Dialog )
         pw.showAtLocation( mapView, Gravity.CENTER_HORIZONTAL|Gravity.TOP, 0, 100 )
-
-        val editViewChannelName = v.findView(TR.channel_name)
+        
+        val editViewChannelName = channelViewTyped.findView(TR.channel_name)
         editViewChannelName.setText( channelButton.getText.toString.substring( 1 ) )
         editViewChannelName.requestFocusFromTouch()
 
@@ -283,14 +284,19 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           }
         })
 
-        v.findView(TR.channel_clean_button).setOnClickListener( new View.OnClickListener{
+        channelViewTyped.findView(TR.channel_clean_button).setOnClickListener( new View.OnClickListener{
           def onClick( view:View ){ editViewChannelName.setText( "" ); true }
         })
 
-        v.findView(TR.channel_update_button).setOnClickListener( new View.OnClickListener{
+        channelViewTyped.findView(TR.channel_update_button).setOnClickListener( new View.OnClickListener{
           def onClick( view:View ){ update() }
         })
 
+        pw.setOnDismissListener( new OnDismissListener{
+          def onDismiss() { v.setSelected( false ) }
+        })
+        
+        v.setSelected( true )
 
       }
     })
@@ -309,6 +315,10 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
           peersPopup.setAnimationStyle(android.R.style.Animation_Translucent)
           peersPopup.showAtLocation( mapView, Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
+
+          peersPopup.setOnDismissListener( new OnDismissListener{
+            def onDismiss() { v.setSelected( false ) }
+          })
           v.setSelected( true )
         }
         else {
@@ -325,7 +335,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     peersPopup.dismiss()
     peersPopup = null
     peersView = null
-    findView(TR.peers_button).setSelected( false )
   }
 
   // ------------------------------------------------------------
