@@ -528,6 +528,8 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     override def getView( position:Int, convertView:View, parent:ViewGroup  ):View = {
       val view =  if( convertView != null ) convertView
                   else getLayoutInflater.inflate( R.layout.peers_row, parent, false )
+
+
       val user = getItem( position )
 
       if( user.tracked ){
@@ -539,15 +541,21 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
       view.setOnClickListener( new OnClickListener{
         override def onClick( view:View  ){
+          val trackedUser = users.find( _.tracked )
           trackedView.foreach( _.setBackgroundColor( Color.TRANSPARENT ) )
 
-          user.tracked = !user.tracked
-          trackedView = if( user.tracked ) Some(view) else None
+          // remember user instance might change so we should compare id
+          users.find( _.id == user.id ).foreach{ user =>
+            user.tracked = !user.tracked
+            trackedView = if( user.tracked ) Some(view) else None
+            if( user.tracked ) view.setBackgroundResource( R.drawable.peer_selected_background )
+            else view.setBackgroundColor( Color.TRANSPARENT )
 
-          if( user.tracked ) view.setBackgroundResource( R.drawable.peer_selected_background )
-          else view.setBackgroundColor( Color.TRANSPARENT )
+          }
 
-          for( u <- users; if( u != user ) ) u.tracked = false
+          trackedUser.foreach{ u =>
+            if( u.id != user.id ) u.tracked = false
+          }
 
           updateUI( false )
         }
