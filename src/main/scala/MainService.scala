@@ -6,13 +6,13 @@ import android.util.Log
 
 import Serializer.serialize
 import android.content.{Context, Intent}
-import android.os.{Bundle, Binder}
 import java.io.Serializable
 import java.net.URI
 import util.Random
 import android.app.{NotificationManager, PendingIntent, Notification, Service}
 import android.location.{Criteria, Location, LocationListener, LocationManager}
 import java.util.{Timer, TimerTask}
+import android.os.{Message, Handler, Bundle, Binder}
 
 
 object MainService {
@@ -42,7 +42,7 @@ object MainService {
 }
 
 // ------------------------------------------------------------
-class MainService extends Service with RunningStateAware{
+class MainService extends Service with RunningStateAware {
   import MainService._
 
 
@@ -97,7 +97,62 @@ class MainService extends Service with RunningStateAware{
   var susbscribeds = List[SubscribedChannel]()
   var publisheds = List[Published]()
 
+
+
+
+
   val client = new Client( new WebSocketEventHandler{
+
+    val networkHandler = new Handler{
+      final val ON_MESSAGE = 1
+      final val ON_STOP = 2
+
+      override def handleMessage( message:Message ){
+        (message.what, message.obj) match {
+          case ( ON_MESSAGE, message:WSDownMessage ) =>
+            broadcast( WS_MESSAGE, message )
+            message match {
+
+              case Bound( session ) =>
+                currentSession = session
+                saveCurrentSession()
+
+              case subscribedChannel:SubscribedChannel =>
+                susbscribeds = subscribedChannel :: susbscribeds
+
+              case UnsubscribedChannel(channel, pubId) =>
+                susbscribeds = susbscribeds.filterNot( _.pubId == pubId )
+                publisheds = publisheds.filterNot( _.pubId == pubId )
+
+              case PublisherUpdated(channel, pubId, publisher) =>
+                susbscribeds = susbscribeds.map{ sub =>
+                  if( sub.channel == channel && sub.pubId == pubId ) SubscribedChannel( channel, pubId, publisher )
+                  else sub
+                }
+
+              case published:Published =>
+                publisheds = published :: publisheds.filterNot( _.pubId == published.pubId )
+
+              case _ =>
+            }
+
+          case ( ON_STOP, client:Client ) =>
+            susbscribeds = Nil
+            publisheds = Nil
+            Log.i( "WS Stop", "Reconnect " + nexusURI.toString )
+            if( state == RunningState.RUNNING ){
+              new Timer().schedule( new TimerTask {
+                def run() {
+                  client.connect( nexusURI, Client.ConnectionOption.DEFAULT  )
+                  broadcast( RECONNECTING_MESSAGE )
+                }
+              }, reconnectSleep )
+              reconnectSleep = if( reconnectSleep >= MAX_RECONNECT_SLEEP ) reconnectSleep else reconnectSleep + 1000
+            }
+        } // match
+      } // def
+    } // Handler
+
     override def onOpen( client:Client ) {
       reconnectSleep = 0
       client.send( PublisherUpdate( currentUser.toPublisher ) )
@@ -108,44 +163,12 @@ class MainService extends Service with RunningStateAware{
       lastNetworkActivity = System.currentTimeMillis()
       val json = new JSONObject( text )
       val message = Serializer.deserialize( json )
-      broadcast( WS_MESSAGE, message )
-      message match {
 
-        case Bound( session ) =>
-          currentSession = session
-          saveCurrentSession()
-
-        case subscribedChannel:SubscribedChannel =>
-          susbscribeds = subscribedChannel :: susbscribeds
-
-        case UnsubscribedChannel(channel, pubId) =>
-          susbscribeds = susbscribeds.filterNot( _.pubId == pubId )
-          publisheds = publisheds.filterNot( _.pubId == pubId )
-
-        case PublisherUpdated(channel, pubId, publisher) =>
-          susbscribeds = susbscribeds.map{ sub =>
-            if( sub.channel == channel && sub.pubId == pubId ) SubscribedChannel( channel, pubId, publisher )
-            else sub
-          }
-
-        case published:Published =>
-          publisheds = published :: publisheds.filterNot( _.pubId == published.pubId )
-
-        case _ =>
-      }
+      networkHandler.sendMessage( networkHandler.obtainMessage( networkHandler.ON_MESSAGE, message ) )
     }
    
     override def onStop( client:Client ){
-      susbscribeds = Nil
-      publisheds = Nil
-
-      if( state == RunningState.RUNNING ){
-        Thread.sleep( reconnectSleep )
-        reconnectSleep = if( reconnectSleep >= MAX_RECONNECT_SLEEP ) reconnectSleep else reconnectSleep + 1000
-        Log.i( "WS Stop", "Reconnect " + nexusURI.toString )
-        client.connect( nexusURI, Client.ConnectionOption.DEFAULT  )
-        broadcast( RECONNECTING_MESSAGE )
-      }
+      networkHandler.sendMessage( networkHandler.obtainMessage( networkHandler.ON_STOP, client ) )
 
     }
     override def onError( client:Client, t:Throwable ){
