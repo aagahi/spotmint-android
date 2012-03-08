@@ -86,23 +86,18 @@ class MainService extends Service with RunningStateAware {
   // ------------------------------------------------------------
   // WS Client
   // ------------------------------------------------------------
+
   var currentSession = ""
-  var lastNetworkActivity = 0L
-  val sessionTimeoutSec = 300
+  final val sessionTimeoutSec = 300
   def nexusURI = new URI("wss://nexus.ws/json-1.0/"+sessionTimeoutSec+"/"+currentSession)
-
-  var reconnectSleep = 0L
-  var MAX_RECONNECT_SLEEP = 60*1000
-
   var susbscribeds = List[SubscribedChannel]()
   var publisheds = List[Published]()
 
-
-
-
-
   val client = new Client( new WebSocketEventHandler{
 
+    var lastNetworkActivity = 0L
+    final val MAX_RECONNECT_SLEEP = 60*1000
+    var reconnectSleep = 0L
     val networkHandler = new Handler{
       final val ON_MESSAGE = 1
       final val ON_STOP = 2
