@@ -1,13 +1,23 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.spotmint.android">
 
+    <!-- Put permission on top of file (voodoo workaround for mapview prob on some devices) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.VIBRATE"/>
+
+    <!-- should set android:debuggable="false" for market release -->
     <application
         android:icon="@drawable/android:star_big_on"
         android:label="@string/app_name"
         android:debuggable="true">
 
+
+
         <uses-library android:name="com.google.android.maps" />
 
+        <!-- should be removed in market release (scala libs are not emmebed in device) -->
         <uses-library android:name="scala_actors-2.9.1"/>
         <uses-library android:name="scala_collection-2.9.1"/>
         <uses-library android:name="scala_immutable-2.9.1"/>
@@ -50,10 +60,5 @@
                       android:largeScreens="true"
                       android:anyDensity="false" />
 
-
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.VIBRATE"/>
 
 </manifest>
