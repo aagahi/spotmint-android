@@ -14,7 +14,7 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "SpotMint",
-    version := "0.4",
+    version := "0.5.2",
     versionCode := 0,
     scalaVersion := "2.8.2",
     scalacOptions := Seq("-deprecation", "-encoding", "utf8"),
@@ -35,7 +35,7 @@ object General {
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "spotmint",
       libraryDependencies ++= Seq(
-        "ws.nexus"                    %% "websocket-client"   % "0.2.5",
+        "ws.nexus"                    %% "websocket-client"   % "0.3.1",
         "com.google.android.maps"     % "maps"                % "7_r1"          % "provided"
   )
     )
