@@ -98,6 +98,7 @@ class MainService extends Service with RunningStateAware {
     var lastNetworkActivity = 0L
     final val MAX_RECONNECT_SLEEP = 60*1000
     var reconnectSleep = 0L
+    
     val networkHandler = new Handler{
       final val ON_MESSAGE = 1
       final val ON_STOP = 2
@@ -169,6 +170,7 @@ class MainService extends Service with RunningStateAware {
     override def onError( client:Client, t:Throwable ){
       Log.e( "WS Error", "Throwable", t )
     }
+    
   })
 
   
@@ -374,7 +376,7 @@ class MainService extends Service with RunningStateAware {
 
     showNotiticationBar()
     startLocation()
-    client.connect( nexusURI, Client.ConnectionOption.DEFAULT )
+    client.connect( nexusURI, Client.ConnectionOption.DEFAULT, Some( ( t:Throwable ) => { Log.v("SpotMint WS", t.getMessage, t ) } ) )
 
 
   }
