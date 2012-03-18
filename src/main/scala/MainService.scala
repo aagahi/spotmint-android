@@ -315,7 +315,7 @@ class MainService extends Service with RunningStateAware {
   // Service Lifecycle
   // ------------------------------------------------------------
   override def onStartCommand( intent:Intent, flags:Int, startId:Int ) = {
-    intent.getAction match {
+    if( intent != null ) intent.getAction match {
       case WS_MESSAGE =>
         val msg = intent.getSerializableExtra( WS_EXTRA ).asInstanceOf[WSUpMessage]
         msg match {
