@@ -18,7 +18,7 @@ import android.os.{Message, Handler, Bundle, Binder}
 object MainService {
   
   final val TAG = "SpotMint Service"
-  
+
   final val WS_MESSAGE = "MainService.WS_MESSAGE"
   final val LOCATION_MESSAGE = "MainService.LOCATION_MESSAGE"
   final val USER_MESSAGE = "MainService.USER_MESSAGE"
@@ -91,8 +91,8 @@ class MainService extends Service with RunningStateAware {
 
   var currentSession = ""
   final val sessionTimeoutSec = 300
-  //final val nexusHost = "nexus.ws"
-  final val nexusHost = "alu.prefetch.com"
+  final val nexusHost = "nexus.ws"
+
   def nexusURI = new URI("wss://%s/json-1.0/%d/%s" format( nexusHost, sessionTimeoutSec, currentSession ) )
 
   var susbscribeds = List[SubscribedChannel]()
@@ -297,17 +297,17 @@ class MainService extends Service with RunningStateAware {
     sendBroadcast( broadCastIntent )
   }
 
-    // ------------------------------------------------------------
+  // ------------------------------------------------------------
   // Notification bar
   // ------------------------------------------------------------
   val SPOTMINT_NOTIFICATION_ID = 1
 
   private def showNotiticationBar(){
-    val icon = android.R.drawable.stat_notify_more;
+
     val tickerText = getString( R.string.notification_ticker )
     val when = System.currentTimeMillis();
 
-    val notification = new Notification( icon, tickerText, when )
+    val notification = new Notification( R.drawable.notification, tickerText, when )
 
     val contentTitle = getString( R.string.notification_title )
     val contentText = getString( R.string.notification_text ) format ( "#" + currentChannel )
@@ -324,7 +324,6 @@ class MainService extends Service with RunningStateAware {
   private def removeNotificationBar(){
     getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager].cancel(SPOTMINT_NOTIFICATION_ID)
   }
-
 
   // ------------------------------------------------------------
   // Service Lifecycle

@@ -9,7 +9,7 @@
 
     <!-- should set android:debuggable="false" for market release -->
     <application
-        android:icon="@drawable/android:star_big_on"
+        android:icon="@drawable/icon"
         android:label="@string/app_name"
         android:debuggable="true">
 

@@ -88,6 +88,7 @@ object MainActivity {
   final val PREFS_ZOOM_LEVEL = "zoom_level"
 }
 
+
 class MainActivity extends MapActivity with TypedActivity with RunningStateAware with Users {
   import MainActivity._
   import Coordinate.coordinateToGeoPoint
