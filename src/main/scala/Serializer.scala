@@ -15,20 +15,19 @@ object Serializer {
       //case PublishTo(channel, pubIds, data) => ""
     }
 
-
-  def deserialize( jsonMessage:JSONObject ):WSDownMessage = {
+  def deserialize( text:String ):WSDownMessage = {
+    val jsonMessage = new JSONObject( text )
     val name = jsonMessage.keys().next().asInstanceOf[String]
     val json =jsonMessage.getJSONObject( name )
     name match {
       case "Bound" => Bound( json.getString("session") )
       case "PublisherUpdated" => PublisherUpdated( json.getString("channel"), json.getInt("pubId"), Publisher( json.getJSONObject("data").getJSONObject("profile") ) )
       case "ChannelCreated" => ChannelCreated( json.getString( "channel" ) )
-      case "SubscribedChannel" => SubscribedChannel( json.getString("channel"), json.getInt("pubId"), Publisher( json.getJSONObject("data").getJSONObject("profile") ) )
+      case "SubscribedChannel" =>
+        val publisher = if( json.has("data") ) Some( Publisher(json.getJSONObject("data").getJSONObject("profile")) ) else None
+        SubscribedChannel( json.getString("channel"), json.getInt("pubId"), publisher )
       case "UnsubscribedChannel" => UnsubscribedChannel( json.getString("channel"), json.getInt("pubId") )
-      case "Published" => Published(  json.getString("channel"), json.getInt("pubId"), Coordinate( json.getJSONObject("data").getJSONObject("coord") ) )
-
+      case "Published" => Published(  json.getString("channel"), json.getInt("pubId"), Coordinate( json.getJSONObject("data").getJSONObject("coord") ), json.getLong("timestamp") )
     }
-
   }
-
 }

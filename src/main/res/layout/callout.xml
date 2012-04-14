@@ -29,4 +29,12 @@
               android:textColor="#fff"
               android:background="#00000000"
             />
+    <TextView android:layout_height="wrap_content"
+              android:layout_width="wrap_content"
+              android:id="@+id/callout_time"
+              android:textSize="12dip"
+              android:textColor="#fff"
+              android:background="#00000000"
+            />
+
 </LinearLayout>

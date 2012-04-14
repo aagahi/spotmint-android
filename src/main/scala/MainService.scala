@@ -10,7 +10,7 @@ import java.io.Serializable
 import java.net.URI
 import util.Random
 import android.app.{NotificationManager, PendingIntent, Notification, Service}
-import android.location.{Criteria, Location, LocationListener, LocationManager}
+import android.location.{Location, LocationListener, LocationManager}
 import java.util.{Timer, TimerTask}
 import android.os.{Message, Handler, Bundle, Binder}
 
@@ -24,6 +24,7 @@ object MainService {
   final val USER_MESSAGE = "MainService.USER_MESSAGE"
   final val CHANNEL_MESSAGE = "MainService.CHANNEL_MESSAGE"
   final val BACKGROUND_POLICY_MESSAGE = "MainService.BACKGROUND_POLICY_MESSAGE"
+  final val TRACKING_ID_MESSAGE = "MainService.TRACKING_ID_MESSAGE"
   final val RECONNECTING_MESSAGE = "MainService.RECONNECTING_MESSAGE"
 
   final val WS_EXTRA = "extra"
@@ -33,6 +34,7 @@ object MainService {
   
   final val PREFS_CHANNEL_NAME = "channel"
 
+  final val PREFS_USER_ID = "user.id"
   final val PREFS_USER_NAME = "user.name"
   final val PREFS_USER_EMAIL = "user.email"
   final val PREFS_USER_STATUS = "user.status"
@@ -50,21 +52,21 @@ class MainService extends Service with RunningStateAware {
 
   lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )
   var currentChannel:String = _
-
-
+  var currentTrackingUserId:Option[Int] = None
 
   // ------------------------------------------------------------
   // Pref persistence
   // ------------------------------------------------------------
   private def loadUser():User = {
-    User( User.SELF_USER_ID,
+    User( sharedPreferences.getInt( PREFS_USER_ID, 0 ),
       sharedPreferences.getString( PREFS_USER_NAME, "Anonymous-" + (100 + Random.nextInt(899)) ),
       sharedPreferences.getString( PREFS_USER_EMAIL, "" ),
       sharedPreferences.getString( PREFS_USER_STATUS, "available" ),
-      Coordinate.NO_COORDINATE, true )
+      Coordinate.NO_COORDINATE, 0, true )
   }
   private def saveUser( user:User ) {
     val editor = sharedPreferences.edit()
+    editor.putInt( PREFS_USER_ID, user.id )
     editor.putString( PREFS_USER_NAME, user.name )
     editor.putString( PREFS_USER_EMAIL, user.email )
     editor.putString( PREFS_USER_STATUS, user.status )
@@ -89,9 +91,17 @@ class MainService extends Service with RunningStateAware {
 
   var currentSession = ""
   final val sessionTimeoutSec = 300
-  def nexusURI = new URI("wss://nexus.ws/json-1.0/"+sessionTimeoutSec+"/"+currentSession)
+  //final val nexusHost = "nexus.ws"
+  final val nexusHost = "alu.prefetch.com"
+  def nexusURI = new URI("wss://%s/json-1.0/%d/%s" format( nexusHost, sessionTimeoutSec, currentSession ) )
+
   var susbscribeds = List[SubscribedChannel]()
   var publisheds = List[Published]()
+
+  def clearChannel() {
+    susbscribeds = Nil
+    publisheds = Nil
+  }
 
   val client = new Client( new WebSocketEventHandler{
 
@@ -114,6 +124,10 @@ class MainService extends Service with RunningStateAware {
                 saveCurrentSession()
 
               case subscribedChannel:SubscribedChannel =>
+                if( subscribedChannel.data.isEmpty ){
+                  currentUser = currentUser.update( subscribedChannel.pubId )
+                  saveUser( currentUser )
+                }
                 susbscribeds = subscribedChannel :: susbscribeds
 
               case UnsubscribedChannel(channel, pubId) =>
@@ -122,7 +136,7 @@ class MainService extends Service with RunningStateAware {
 
               case PublisherUpdated(channel, pubId, publisher) =>
                 susbscribeds = susbscribeds.map{ sub =>
-                  if( sub.channel == channel && sub.pubId == pubId ) SubscribedChannel( channel, pubId, publisher )
+                  if( sub.channel == channel && sub.pubId == pubId ) SubscribedChannel( channel, pubId, Some(publisher) )
                   else sub
                 }
 
@@ -133,8 +147,7 @@ class MainService extends Service with RunningStateAware {
             }
 
           case ( ON_STOP, client:Client ) =>
-            susbscribeds = Nil
-            publisheds = Nil
+            clearChannel()
             Log.i( "WS Stop", "Reconnect " + nexusURI.toString )
             if( state == RunningState.RUNNING ){
               new Timer().schedule( new TimerTask {
@@ -157,8 +170,7 @@ class MainService extends Service with RunningStateAware {
     }
     override def onMessage( client:Client, text:String ){
       lastNetworkActivity = System.currentTimeMillis()
-      val json = new JSONObject( text )
-      val message = Serializer.deserialize( json )
+      val message = Serializer.deserialize( text )
 
       networkHandler.sendMessage( networkHandler.obtainMessage( networkHandler.ON_MESSAGE, message ) )
     }
@@ -270,19 +282,22 @@ class MainService extends Service with RunningStateAware {
   // ------------------------------------------------------------
   // Broadcast MGMT
   // ------------------------------------------------------------
-  private def broadcast( messageType:String ){
-    broadcast( messageType, None )
-  }
   private def broadcast( messageType:String, message:Serializable ){
-    broadcast( messageType, Some(message) )
+    broadcast( messageType, Option(message) )
   }
-  private def broadcast( messageType:String, message:Option[Serializable]  ){
-    Log.v(TAG, "Broadcast %s => %s" format ( messageType, message.toString ) )
+  private def broadcast( messageType:String, message:Option[Serializable] = None ){
+    broadcastIntent( messageType ){ intent =>
+      message.foreach( message => intent.putExtra( WS_EXTRA, message ) )
+    }
+  }
+  private def broadcastIntent( messageType:String )( block : Intent => Any ){
     val broadCastIntent = new Intent( messageType )
-    message.foreach( message => broadCastIntent.putExtra( WS_EXTRA, message ) )
+    block( broadCastIntent )
+    Log.v(TAG, "Broadcast %s => %s" format ( messageType, broadCastIntent.getExtras ) )
     sendBroadcast( broadCastIntent )
   }
-  // ------------------------------------------------------------
+
+    // ------------------------------------------------------------
   // Notification bar
   // ------------------------------------------------------------
   val SPOTMINT_NOTIFICATION_ID = 1
@@ -320,23 +335,27 @@ class MainService extends Service with RunningStateAware {
         val msg = intent.getSerializableExtra( WS_EXTRA ).asInstanceOf[WSUpMessage]
         msg match {
           case PublisherUpdate( publisher )=>
-            saveUser( User( publisher ) )
+            currentUser = currentUser.update( publisher )
+            saveUser( currentUser )
             client.send( msg )
 
           case SubscribChannel( channel ) =>
             client.send( UnsubscribChannel( currentChannel ) )
             currentChannel = channel
+            clearChannel()
+            saveChannel()
             broadcast( CHANNEL_MESSAGE, currentChannel )
             showNotiticationBar()
-            saveChannel()
             client.send( msg )
             client.send( Publish( currentChannel, currentUser.coord ) )
+
 
           case _ =>
             // TODO: in case of Unsubscrib there is no garanty the server recieve the mesg... if network error occurs client might still be connected to the channel
             // We should find to have a better underlying delivery system
             client.send( msg )
         }
+
 
 
       case BACKGROUND_POLICY_MESSAGE =>
@@ -353,12 +372,20 @@ class MainService extends Service with RunningStateAware {
         }
 
 
+      case TRACKING_ID_MESSAGE =>
+        val id = intent.getIntExtra( WS_EXTRA, currentUser.id )
+        currentTrackingUserId = Option( id  )
+        broadcastIntent( TRACKING_ID_MESSAGE ){ _.putExtra( WS_EXTRA, id  ) }
+
+
+
       // default start (usually when activity restart)
       case _ =>
         broadcast( USER_MESSAGE, currentUser )
         broadcast( CHANNEL_MESSAGE, currentChannel )
         susbscribeds.foreach( broadcast( WS_MESSAGE, _ ) )
         publisheds.foreach( broadcast( WS_MESSAGE, _ ) )
+        currentTrackingUserId.foreach( id => broadcastIntent( TRACKING_ID_MESSAGE ){ _.putExtra( WS_EXTRA, id  ) } )
     }
 
     Service.START_STICKY

@@ -21,10 +21,17 @@
     <string name="clear_button">Clear</string>
 
     <string name="share_subject">Join us on channel %s</string>
-    <string name="share_text" formatted="false"><![CDATA[Join us with your browser http://spotmint.com/%s or your mobile app spotmint://%s]]></string>
+    <string name="share_text" formatted="false"><![CDATA[Join us with your browser http://spotmint.com/%s/%d or your mobile app spotmint://%s/%d]]></string>
 
     <string name="notification_ticker">SpotMint</string>
     <string name="notification_title">SpotMint</string>
     <string name="notification_text">Broadcast on channel %s</string>
+
+    <string name="callout_not_moving">Not moving</string>
+    <string name="callout_sec_ago" formatted="false"><![CDATA[%d sec ago]]></string>
+    <string name="callout_min_ago" formatted="false"><![CDATA[%d min ago]]></string>
+    <string name="callout_long_time_ago">Long time ago</string>
+
+
 
 </resources>

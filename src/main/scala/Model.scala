@@ -7,14 +7,21 @@ import com.google.android.maps.GeoPoint
 import org.json.JSONObject
 import android.location.Location
 import android.util.Log
+import android.content.Context
 
 // ------------------------------------------------------------
 // ------------------------------------------------------------
 
 trait Users {
   final var users = List[User]()
+  final var currentUserId = 0
 
-  def currentUser = users.find( _.id == User.SELF_USER_ID )
+  def currentUser = userById( currentUserId )
+  def userById( id:Int ) = users.find( _.id == id )
+
+  def replaceUserBy( olduser:User, newUser:User ){
+    users = users.map{ u => if( u == olduser ) newUser else u }
+  }
 
   def updateUserOrAppendNew( user:User ){
     var found = false
@@ -30,8 +37,8 @@ trait Users {
 
   def removeById( id:Int ){ users = users.filterNot( _.id == id ) }
 
-  def updateCoord( id:Int, coord:Coordinate ){
-    users = users.map{ user => if( user.id == id ) user.update( coord ) else user }
+  def updateCoord( id:Int, coord:Coordinate, timestamp:Long = System.currentTimeMillis() ){
+    users = users.map{ user => if( user.id == id ) user.update( coord, timestamp ) else user }
   }
 
   def clearAndKeepCurrentUser() {
@@ -43,7 +50,8 @@ trait Users {
 object User {
   final val SELF_USER_ID = -1
 
-  def apply( publisher:Publisher ):User = User( SELF_USER_ID, publisher.name, publisher.email, publisher.status )
+  def apply( publisher:Publisher ):User = User( 0, publisher.name, publisher.email, publisher.status )
+
 
   def getAvatarURL( email:String, size: Int) = {
 
@@ -68,17 +76,39 @@ object User {
 
 }
 
-case class User(id: Int, name: String, email: String, status: String, coord: Coordinate = Coordinate.NO_COORDINATE, var tracked: Boolean = false)
+case class User(id: Int, name: String, email: String, status: String, coord: Coordinate = Coordinate.NO_COORDINATE, timestamp:Long = 0L, var tracked: Boolean = false)
   extends Serializable {
 
   def toPublisher: Publisher = Publisher(name, email, status)
-  def update( newName: String, newEmail: String, newStatus: String ) = User( id, newName, newEmail, newStatus, coord, tracked )
-  def update( newCoord:Coordinate ) = User( id, name, email, status, newCoord, tracked )
-  def update( publisher:Publisher ) = User( id, publisher.name, publisher.email, publisher.status, coord, tracked )
+  def update( newId: Int ):User = User( newId, name, email, status, coord, timestamp, tracked )
+  def update( newName: String, newEmail: String, newStatus: String ) = User( id, newName, newEmail, newStatus, coord, timestamp, tracked )
+  def update( publisher:Publisher ) = User( id, publisher.name, publisher.email, publisher.status, coord, timestamp, tracked )
+  def update( newCoord:Coordinate, newTimestamp:Long = System.currentTimeMillis() ) ={
+    val now = System.currentTimeMillis()
+    val ts = if( newTimestamp > now ) now else newTimestamp
+    User( id, name, email, status, newCoord, ts, tracked )
+  }
+
+
   def getAvatarURL(size: Int) = User.getAvatarURL( email, size )
 
   def publisher = Publisher( name, email, status )
+
+  def updatePositionSinceSec = {
+   val now = System.currentTimeMillis()
+   ( now - timestamp ) / 1000
+  }
+
+
+  def upadtePositionString(implicit context:Context ) = {
+    val sec = updatePositionSinceSec
+    if( sec == 0L ) context.getString( R.string.callout_not_moving )
+    else if( sec < 60L ) context.getString( R.string.callout_sec_ago ) format sec
+    else if( sec/60 < 60L ) context.getString( R.string.callout_min_ago ) format (sec/60)
+    else context.getString( R.string.callout_long_time_ago )
+  }
 }
+
 
 
 
@@ -126,7 +156,7 @@ case class CreateChannel() extends WSUpMessage
 case class ChannelCreated(channel: String) extends WSDownMessage
 
 case class SubscribChannel(channel: String) extends WSUpMessage
-case class SubscribedChannel(channel: String, pubId: Int, data: Publisher) extends WSDownMessage
+case class SubscribedChannel( channel:String, pubId:Int, data:Option[Publisher] ) extends WSDownMessage
 
 case class UnsubscribChannel(channel: String) extends WSUpMessage
 case class UnsubscribedChannel(channel: String, pubId: Int) extends WSDownMessage
@@ -134,7 +164,8 @@ case class UnsubscribedChannel(channel: String, pubId: Int) extends WSDownMessag
 case class Publish(channel: String, data: Coordinate) extends WSUpMessage
 case class PublishTo(channel: String, pubIds: Seq[Int], data: Coordinate) extends WSUpMessage
 
-case class Published(channel: String, pubId: Int, data: Coordinate) extends WSDownMessage
+case class Published( channel:String, pubId:Int, data:Coordinate, timestamp:Long ) extends WSDownMessage
+
 
 
 // ------------------------------------------------------------

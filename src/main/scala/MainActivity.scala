@@ -17,7 +17,6 @@ import android.view.View.{OnFocusChangeListener, OnClickListener}
 
 import android.graphics.drawable.BitmapDrawable
 import inputmethod.{EditorInfo}
-import android.content.Context._
 import android.webkit.WebView
 import android.widget.PopupWindow.OnDismissListener
 
@@ -25,7 +24,7 @@ import android.widget.PopupWindow.OnDismissListener
 // ------------------------------------------------------------
 // ------------------------------------------------------------
 // ------------------------------------------------------------
-class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
+class GestureMapView( implicit context:Context, attrs:AttributeSet ) extends MapView( context, attrs ){
   import Coordinate._
 
   var usersHolder:Users = new Users{}
@@ -51,6 +50,7 @@ class GestureMapView( context:Context, attrs:AttributeSet ) extends MapView( con
           val v = TypedResource.view2typed( callout )
           v.findView( TR.callout_title ).setText( user.name )
           v.findView( TR.callout_subtitle ).setText( user.status )
+          v.findView( TR.callout_time ).setText( user.upadtePositionString )
 
           val pw = new PopupWindow( callout, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true )
 
@@ -119,23 +119,29 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   lazy val receiver = new BroadcastReceiver(){
     def onReceive( context:Context, intent:Intent ){
 
-
-
       val extra = intent.getSerializableExtra(MainService.WS_EXTRA)
-      
+
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
             case SubscribedChannel( channel, pubId, publisher) =>
-              updatePublisherByIdOrAppendNew( pubId, publisher )
+              publisher match{
+                case Some( publisher ) =>
+                  updatePublisherByIdOrAppendNew( pubId, publisher )
+                case None =>
+                  userById( currentUserId ).foreach{ user =>
+                    replaceUserBy( user, user.update( pubId ) )
+                    currentUserId = pubId
+                  }
+              }
               updateUI()
 
             case UnsubscribedChannel( _, pubId) =>
               removeById( pubId )
               updateUI()
 
-            case Published( _, pubId, data ) =>
-              updateCoord( pubId, data )
+            case Published( _, pubId, data, timestamp ) =>
+              updateCoord( pubId, data, timestamp )
               updateUI( false )
 
 
@@ -143,13 +149,14 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
               updatePublisherByIdOrAppendNew( pubId, data )
               updateUI()
 
-
             case _ =>
           }
           
 
         case MainService.USER_MESSAGE =>
-          updateUserOrAppendNew( extra.asInstanceOf[User] )
+          val user = extra.asInstanceOf[User]
+          currentUserId = user.id
+          updateUserOrAppendNew(  user )
           updateUI()
 
         case MainService.CHANNEL_MESSAGE =>
@@ -162,13 +169,23 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
             channelButton.startAnimation( textGlowAnim )
           }
 
-
           clearAndKeepCurrentUser()
           updateUI()
 
         case MainService.LOCATION_MESSAGE =>
-          updateCoord( User.SELF_USER_ID, extra.asInstanceOf[Coordinate] )
+          updateCoord( currentUserId, extra.asInstanceOf[Coordinate] )
           updateUI( false )
+
+        case MainService.TRACKING_ID_MESSAGE =>
+          val trackingUserId = intent.getIntExtra( MainService.WS_EXTRA, currentUserId )
+          users.find( _.id == trackingUserId ).foreach{ user =>
+            if( !user.tracked ){
+              users.find( _.tracked ).foreach( _.tracked = false )
+              user.tracked = true
+            }
+            updateUI( false )
+          }
+
 
 
         case MainService.RECONNECTING_MESSAGE =>
@@ -193,6 +210,12 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     startService( serviceIntent )
   }
 
+  def sendTrackingIdToService( id:Int ){
+    val serviceIntent = new Intent( context, classOf[MainService] )
+    serviceIntent.setAction( MainService.TRACKING_ID_MESSAGE )
+    serviceIntent.putExtra( MainService.WS_EXTRA, id )
+    startService( serviceIntent )
+  }
 
 
   // ------------------------------------------------------------
@@ -226,6 +249,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     registerReceiver( receiver, new IntentFilter( MainService.USER_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.CHANNEL_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.RECONNECTING_MESSAGE ) )
+    registerReceiver( receiver, new IntentFilter( MainService.TRACKING_ID_MESSAGE ) )
 
     val serviceIntent = new Intent( context, classOf[MainService] )
     startService( serviceIntent )
@@ -372,7 +396,15 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
       val uri = intent.getData().toString
 
       val i = uri.lastIndexOf("#")
-      if( i > 0 ) sendWSMessageToService( SubscribChannel( uri.substring( i+1 ) ) )
+      if( i > 0 ){
+        val ( channel, trackingUserId ) = uri.substring( i+1 ).split("/") match {
+          case Array( a ) => ( Some(a), None )
+          case Array( a, b ) => ( Some(a), try{ Some( b.toInt) } catch { case _ => None } )
+          case _ => (None, None)
+        }
+        channel.foreach( c => sendWSMessageToService( SubscribChannel( c ) ) )
+        trackingUserId.foreach( sendTrackingIdToService )
+      }
 
     }
 
@@ -387,6 +419,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     state = RunningState.DYING
 
     unregisterReceiver( receiver )
+
   }
 
 
@@ -482,14 +515,14 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
         true
 
+
       // ------------------------------------------------------------
       case R.id.menu_share =>
         val shareIntent = new Intent(Intent.ACTION_SEND)
         shareIntent.setType("text/plain")
         val currentChannel = findView(TR.channel_button).getText
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format( currentChannel ) )
-        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentChannel, currentChannel ) )
-
+        shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format currentChannel )
+        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentUserId, currentChannel, currentUserId ) )
         context.startActivity(shareIntent)
 
         true
@@ -547,10 +580,10 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           // remember user instance might change so we should compare id
           users.find( _.id == user.id ).foreach{ user =>
             user.tracked = !user.tracked
+            if( user.tracked ) sendTrackingIdToService( user.id )
             trackedView = if( user.tracked ) Some(view) else None
             if( user.tracked ) view.setBackgroundResource( R.drawable.peer_selected_background )
             else view.setBackgroundColor( Color.TRANSPARENT )
-
           }
 
           trackedUser.foreach{ u =>
