@@ -1,0 +1,37 @@
+<resources>
+    <string name="nexus_ws_url">wss://nexus.ws/json-1.0/</string>
+    <string name="about_url">http://spotmint.com/web/about-fr.html</string>
+
+    <string name="app_name">SpotMint</string>
+
+    <string name="menu_about">A propos</string>
+    <string name="menu_profile">Profile</string>
+    <string name="menu_signout">Quitter</string>
+    <string name="menu_share">Partager</string>
+
+    <string name="profile_name">Nom</string>
+    <string name="profile_email">Email</string>
+    <string name="profile_status">Status</string>
+
+    <string name="channel_enter_new">Changer de canal</string>
+    <string name="channel_name">canal</string>
+    <string name="channel_tap_to_change">taper-ici</string>
+
+    <string name="update_button">Modifier</string>
+    <string name="clear_button">Effacer</string>
+
+    <string name="share_subject">Rejoins-nous sur le canal %s</string>
+    <string name="share_text" formatted="false"><![CDATA[Rejoins-nous avec ton navigateur : http://spotmint.com/%s/%d ou avec ton application mobile : spotmint://%s/%d]]></string>
+
+    <string name="notification_ticker">SpotMint</string>
+    <string name="notification_title">SpotMint</string>
+    <string name="notification_text">Diffuser le canal %s</string>
+
+    <string name="callout_not_moving">Immobile</string>
+    <string name="callout_sec_ago" formatted="false"><![CDATA[%d sec]]></string>
+    <string name="callout_min_ago" formatted="false"><![CDATA[%d min]]></string>
+    <string name="callout_long_time_ago">Un certain moment</string>
+
+
+
+</resources>

@@ -14,7 +14,7 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "SpotMint",
-    version := "0.5.4",
+    version := "0.5.6",
     versionCode := 0,
     scalaVersion := "2.8.2",
     scalacOptions := Seq("-deprecation", "-encoding", "utf8"),
