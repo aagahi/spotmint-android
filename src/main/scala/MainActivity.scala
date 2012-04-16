@@ -125,16 +125,15 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
-            case SubscribedChannel( channel, pubId, publisher) =>
-              publisher match{
-                case Some( publisher ) =>
-                  updatePublisherByIdOrAppendNew( pubId, publisher )
-                case None =>
-                  userById( currentUserId ).foreach{ user =>
-                    replaceUserBy( user, user.update( pubId ) )
-                    currentUserId = pubId
-                  }
+            case SubscribedChannel( channel, pubId, None ) =>
+              userById( currentUserId ).foreach{ user =>
+                replaceUserBy( user, user.update( pubId ) )
+                currentUserId = pubId
               }
+              updateUI()
+
+            case SubscribedChannel( channel, pubId, Some(publisher)) =>
+              updatePublisherByIdOrAppendNew( pubId, publisher )
               updateUI()
 
             case UnsubscribedChannel( _, pubId) =>
