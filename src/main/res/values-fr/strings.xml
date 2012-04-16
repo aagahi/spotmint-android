@@ -25,7 +25,7 @@
 
     <string name="notification_ticker">SpotMint</string>
     <string name="notification_title">SpotMint</string>
-    <string name="notification_text">Diffuser le canal %s</string>
+    <string name="notification_text">Diffusion sur le canal %s</string>
 
     <string name="callout_not_moving">Immobile</string>
     <string name="callout_sec_ago" formatted="false"><![CDATA[%d sec]]></string>
