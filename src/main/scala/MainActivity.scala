@@ -258,7 +258,8 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     mapView = findView(TR.mapview)
     mapView.usersHolder = this
     mapView.setBuiltInZoomControls( true )
-    mapView.setStreetView(true)
+    mapView.setSatellite(false)
+    mapView.setStreetView(false)
     mapView.getOverlays.add(overlay)
 
 
