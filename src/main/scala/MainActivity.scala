@@ -86,12 +86,15 @@ class GestureMapView( implicit context:Context, attrs:AttributeSet ) extends Map
 object MainActivity {
   final val TAG = "SpotMint Activity"
   final val PREFS_ZOOM_LEVEL = "zoom_level"
+  final val KILL_MESSAGE = "MainActivity.KILL_MESSAGE"
 }
 
 
 class MainActivity extends MapActivity with TypedActivity with RunningStateAware with Users {
   import MainActivity._
   import Coordinate.coordinateToGeoPoint
+  import Utils._
+
 
   implicit val context = this
 
@@ -192,6 +195,10 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           clearAndKeepCurrentUser()
           updateUI()
 
+
+        case MainActivity.KILL_MESSAGE =>
+          finish()
+
       }
     }
   }
@@ -250,6 +257,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
     registerReceiver( receiver, new IntentFilter( MainService.CHANNEL_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.RECONNECTING_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.TRACKING_ID_MESSAGE ) )
+    registerReceiver( receiver, new IntentFilter( MainActivity.KILL_MESSAGE ) )
 
     val serviceIntent = new Intent( context, classOf[MainService] )
     startService( serviceIntent )
@@ -278,9 +286,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
     // Channel Button ------------------------------------
     val channelButton = findView(TR.channel_button)
-    channelButton.setOnClickListener( new View.OnClickListener{
-      
-      def onClick( v:View ){
+    channelButton.setOnClickListener{ v:View =>
         channelButton.clearAnimation()
         val channelView = context.getLayoutInflater.inflate( R.layout.channel, null ).asInstanceOf[ViewGroup]
         val channelViewTyped = TypedResource.view2typed( channelView )
@@ -309,13 +315,9 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
           }
         })
 
-        channelViewTyped.findView(TR.channel_clean_button).setOnClickListener( new View.OnClickListener{
-          def onClick( view:View ){ editViewChannelName.setText( "" ); true }
-        })
+        channelViewTyped.findView(TR.channel_clean_button).setOnClickListener{ view:View => editViewChannelName.setText( "" ); true }
+        channelViewTyped.findView(TR.channel_update_button).setOnClickListener{ view:View => update() }
 
-        channelViewTyped.findView(TR.channel_update_button).setOnClickListener( new View.OnClickListener{
-          def onClick( view:View ){ update() }
-        })
 
         pw.setOnDismissListener( new OnDismissListener{
           def onDismiss() { v.setSelected( false ) }
@@ -323,34 +325,31 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         
         v.setSelected( true )
 
-      }
-    })
+    }
 
     // Peers Button ------------------------------------
-    findView(TR.peers_button).setOnClickListener( new View.OnClickListener{
+    findView(TR.peers_button).setOnClickListener{ v:View =>
+      if( peersPopup == null ){
+        peersView = getLayoutInflater.inflate( R.layout.peers, null ).asInstanceOf[ListView]
 
-      def onClick( v:View ){
-        if( peersPopup == null ){
-          peersView = getLayoutInflater.inflate( R.layout.peers, null ).asInstanceOf[ListView]
+        reloadPeersViewAdapter()
 
-          reloadPeersViewAdapter()
+        peersPopup = new PopupWindow( peersView, 160, mapView.getHeight-44, false )
+        peersPopup.setBackgroundDrawable(new BitmapDrawable())
 
-          peersPopup = new PopupWindow( peersView, 160, mapView.getHeight-44, false )
-          peersPopup.setBackgroundDrawable(new BitmapDrawable())
+        peersPopup.setAnimationStyle(android.R.style.Animation_Translucent)
+        peersPopup.showAtLocation( mapView, Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
 
-          peersPopup.setAnimationStyle(android.R.style.Animation_Translucent)
-          peersPopup.showAtLocation( mapView, Gravity.RIGHT|Gravity.BOTTOM, 2, 2 )
-
-          peersPopup.setOnDismissListener( new OnDismissListener{
-            def onDismiss() { v.setSelected( false ) }
-          })
-          v.setSelected( true )
-        }
-        else {
-          removePeerPopup()
-        }
+        peersPopup.setOnDismissListener( new OnDismissListener{
+          def onDismiss() { v.setSelected( false ) }
+        })
+        v.setSelected( true )
       }
-    })
+      else {
+        removePeerPopup()
+      }
+    }
+
   }
 
 
@@ -509,13 +508,16 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
             else false
           }
         })
-        v.findView(TR.profile_update_button).setOnClickListener( new View.OnClickListener{
-          def onClick( view:View ){ updateProfile(pw,v); true }
-        })
-        
+        v.findView(TR.profile_update_button).setOnClickListener{ view:View => updateProfile(pw,v); true }
 
         true
 
+        
+      // ------------------------------------------------------------
+      case R.id.menu_settings =>
+        val settingsActivity = new Intent( getBaseContext(), classOf[SettingsActivity] )
+        startActivity( settingsActivity )
+        true
 
       // ------------------------------------------------------------
       case R.id.menu_share =>
@@ -525,7 +527,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format currentChannel )
         shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentUserId, currentChannel, currentUserId ) )
         context.startActivity(shareIntent)
-
         true
 
       // ------------------------------------------------------------
@@ -534,7 +535,9 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         val serviceIntent = new Intent( context, classOf[MainService] )
         val status = stopService( serviceIntent )
         Log.v( TAG, "Activity has stopped service: " + status )
-        finish()
+
+        // Broadcast kill to all activity
+        sendBroadcast( new Intent( MainActivity.KILL_MESSAGE ) )
 
         true
 
@@ -573,31 +576,27 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
       else view.setBackgroundColor( Color.TRANSPARENT )
 
 
-      view.setOnClickListener( new OnClickListener{
-        override def onClick( view:View  ){
-          val trackedUser = users.find( _.tracked )
-          trackedView.foreach( _.setBackgroundColor( Color.TRANSPARENT ) )
+      view.setOnClickListener{ view:View =>
+        val trackedUser = users.find( _.tracked )
+        trackedView.foreach( _.setBackgroundColor( Color.TRANSPARENT ) )
 
-          // remember user instance might change so we should compare id
-          users.find( _.id == user.id ).foreach{ user =>
-            user.tracked = !user.tracked
-            if( user.tracked ) sendTrackingIdToService( user.id )
-            trackedView = if( user.tracked ) Some(view) else None
-            if( user.tracked ) view.setBackgroundResource( R.drawable.peer_selected_background )
-            else view.setBackgroundColor( Color.TRANSPARENT )
-          }
-
-          trackedUser.foreach{ u =>
-            if( u.id != user.id ) u.tracked = false
-          }
-
-          updateUI( false )
+        // remember user instance might change so we should compare id
+        users.find( _.id == user.id ).foreach{ user =>
+          user.tracked = !user.tracked
+          if( user.tracked ) sendTrackingIdToService( user.id )
+          trackedView = if( user.tracked ) Some(view) else None
+          if( user.tracked ) view.setBackgroundResource( R.drawable.peer_selected_background )
+          else view.setBackgroundColor( Color.TRANSPARENT )
         }
 
-      })
+        trackedUser.foreach{ u =>
+          if( u.id != user.id ) u.tracked = false
+        }
+
+        updateUI( false )
+      }
 
       val v = TypedResource.view2typed( view )
-
 
       val image = v.findView(TR.row_image)
 
@@ -611,8 +610,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
       val statusTextView = v.findView(TR.row_status)
       statusTextView.setText( user.status )
-
-
 
       view
     }

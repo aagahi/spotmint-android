@@ -14,8 +14,8 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "SpotMint",
-    version := "0.5.8",
-    versionCode := 0,
+    version := "1.0.2",
+    versionCode := 3,
     scalaVersion := "2.8.2",
     scalacOptions := Seq("-deprecation", "-encoding", "utf8"),
     platformName in Android := "android-7",

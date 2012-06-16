@@ -17,12 +17,13 @@
 
         <uses-library android:name="com.google.android.maps" />
 
-        <!-- should be removed in market release (scala libs are not emmebed in device) -->
+        <!-- should be removed in market release (scala libs are not emmebed in device)-->
         <uses-library android:name="scala_actors-2.9.1"/>
         <uses-library android:name="scala_collection-2.9.1"/>
         <uses-library android:name="scala_immutable-2.9.1"/>
         <uses-library android:name="scala_library-2.9.1"/>
         <uses-library android:name="scala_mutable-2.9.1"/>
+
 
         <activity android:label="@string/app_name" android:name="MainActivity" android:theme="@android:style/Theme.NoTitleBar">
 
@@ -44,6 +45,10 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="spotmint" />
             </intent-filter>
+        </activity>
+        <activity
+                android:name=".SettingsActivity"
+                android:label="@string/set_preferences">
         </activity>
 
         <service android:name="MainService"/>

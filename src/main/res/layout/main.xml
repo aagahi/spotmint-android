@@ -14,10 +14,10 @@
             android:clickable="true"
             android:apiKey="0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ"
             />
-<!--
-            0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ is for debug
+    <!--
             android:apiKey="0iEa9SuQMLBAXGK3weT8yd9TWf1qNvZ09uJIMww"
--->
+                0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ is for debug
+    -->
 
     <RelativeLayout
             android:layout_width="fill_parent"

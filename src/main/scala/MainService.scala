@@ -47,7 +47,6 @@ object MainService {
 class MainService extends Service with RunningStateAware {
   import MainService._
 
-
   var currentUser:User = _
 
   lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )

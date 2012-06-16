@@ -3,9 +3,13 @@
     <string name="about_url">http://spotmint.com/web/about-fr.html</string>
 
     <string name="app_name">SpotMint</string>
+    <string name="set_preferences">Paramètres SpotMint</string>
+
+
 
     <string name="menu_about">A propos</string>
     <string name="menu_profile">Profile</string>
+    <string name="menu_settings">Paramètres</string>
     <string name="menu_signout">Quitter</string>
     <string name="menu_share">Partager</string>
 
