@@ -250,7 +250,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
     setContentView(R.layout.main)
 
-
     registerReceiver( receiver, new IntentFilter( MainService.WS_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.LOCATION_MESSAGE ) )
     registerReceiver( receiver, new IntentFilter( MainService.USER_MESSAGE ) )

@@ -5,6 +5,13 @@
     <string name="app_name">SpotMint</string>
     <string name="set_preferences">Paramètres SpotMint</string>
 
+    <string name="general_settings">Gestion de l\'Energie</string>
+    <string name="reduced_gps_after_title">Eco GPS Après</string>
+    <string name="reduced_gps_after_summary">Temps avant l\'utilisation du GPS en mode économique</string>
+    <string name="reduced_gps_accuracy_title">Précision Eco GPS</string>
+    <string name="reduced_gps_accuracy_summary">Précision du GPS lorsqu\'il fonctionne en mode économique</string>
+    <string name="disconnect_timeout_title">Auto-Déconnexion</string>
+    <string name="disconnect_timeout_summary">Temps avant la déconnexion automatique</string>
 
 
     <string name="menu_about">A propos</string>

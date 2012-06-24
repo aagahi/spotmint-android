@@ -1,7 +1,6 @@
 package com.spotmint.android
 
 import ws.nexus.websocket.client.{WebSocketEventHandler, Client}
-import org.json.JSONObject
 import android.util.Log
 
 import Serializer.serialize
@@ -13,6 +12,7 @@ import android.app.{NotificationManager, PendingIntent, Notification, Service}
 import android.location.{Location, LocationListener, LocationManager}
 import java.util.{Timer, TimerTask}
 import android.os.{Message, Handler, Bundle, Binder}
+import android.widget.Toast
 
 
 object MainService {
@@ -31,7 +31,9 @@ object MainService {
 
   final val LOW_POWER_USAGE = 0
   final val HIGH_POWER_USAGE = 2
-  
+
+  final val PREFS_NAME_KEY = "MainService"
+
   final val PREFS_CHANNEL_NAME = "channel"
 
   final val PREFS_USER_ID = "user.id"
@@ -39,6 +41,8 @@ object MainService {
   final val PREFS_USER_EMAIL = "user.email"
   final val PREFS_USER_STATUS = "user.status"
   final val PREFS_SESSION = "session"
+
+
 
   class LocalBinder( val service:MainService ) extends Binder
 }
@@ -49,12 +53,15 @@ class MainService extends Service with RunningStateAware {
 
   var currentUser:User = _
 
-  lazy val sharedPreferences = getSharedPreferences( "MainService", Context.MODE_PRIVATE )
+  lazy val sharedPreferences = getSharedPreferences( PREFS_NAME_KEY, Context.MODE_PRIVATE )
   var currentChannel:String = _
   var currentTrackingUserId:Option[Int] = None
 
+
+  lazy val settings = getSharedPreferences( SettingsActivity.PREFS_NAME_KEY, Context.MODE_PRIVATE )
+
   // ------------------------------------------------------------
-  // Pref persistence
+  // Pref
   // ------------------------------------------------------------
   private def loadUser():User = {
     User( sharedPreferences.getInt( PREFS_USER_ID, 0 ),
@@ -82,7 +89,13 @@ class MainService extends Service with RunningStateAware {
     editor.putString( PREFS_SESSION, currentSession )
     editor.commit()
   }
-  
+
+  // ------------------------------------------------------------
+  // Settings
+  // ------------------------------------------------------------
+  def reducedGPSAfter = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_AFTER, "5" ).toInt
+  def reducedGPSAccuracy = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_ACCURACY, "10" ).toInt
+  def disconnectTimeout = settings.getString(SettingsActivity.PREFS_DISCONNECT_TIMEOUT, "60" ).toInt
 
   // ------------------------------------------------------------
   // WS Client
@@ -289,6 +302,7 @@ class MainService extends Service with RunningStateAware {
       message.foreach( message => intent.putExtra( WS_EXTRA, message ) )
     }
   }
+
   private def broadcastIntent( messageType:String )( block : Intent => Any ){
     val broadCastIntent = new Intent( messageType )
     block( broadCastIntent )
@@ -328,66 +342,70 @@ class MainService extends Service with RunningStateAware {
   // Service Lifecycle
   // ------------------------------------------------------------
   override def onStartCommand( intent:Intent, flags:Int, startId:Int ) = {
-    if( intent != null ) intent.getAction match {
-      case WS_MESSAGE =>
-        val msg = intent.getSerializableExtra( WS_EXTRA ).asInstanceOf[WSUpMessage]
-        msg match {
-          case PublisherUpdate( publisher )=>
-            currentUser = currentUser.update( publisher )
-            saveUser( currentUser )
-            client.send( msg )
-
-          case SubscribChannel( channel ) =>
-            if( currentChannel != channel ){
-              client.send( UnsubscribChannel( currentChannel ) )
-              currentChannel = channel
-              clearChannel()
-              saveChannel()
-              broadcast( CHANNEL_MESSAGE, currentChannel )
-              showNotiticationBar()
+    if( intent != null ){
+      val action = intent.getAction
+      action match {
+        case WS_MESSAGE =>
+          val msg = intent.getSerializableExtra( WS_EXTRA ).asInstanceOf[WSUpMessage]
+          msg match {
+            case PublisherUpdate( publisher )=>
+              currentUser = currentUser.update( publisher )
+              saveUser( currentUser )
               client.send( msg )
-              client.send( Publish( currentChannel, currentUser.coord ) )
-            }
+
+            case SubscribChannel( channel ) =>
+              if( currentChannel != channel ){
+                client.send( UnsubscribChannel( currentChannel ) )
+                currentChannel = channel
+                clearChannel()
+                saveChannel()
+                broadcast( CHANNEL_MESSAGE, currentChannel )
+                showNotiticationBar()
+                client.send( msg )
+                client.send( Publish( currentChannel, currentUser.coord ) )
+              }
 
 
-          case _ =>
-            // TODO: in case of Unsubscrib there is no garanty the server recieve the mesg... if network error occurs client might still be connected to the channel
-            // We should find to have a better underlying delivery system
-            client.send( msg )
-        }
-
-
-
-      case BACKGROUND_POLICY_MESSAGE =>
-        intent.getIntExtra( WS_EXTRA, LOW_POWER_USAGE ) match {
-          case LOW_POWER_USAGE =>
-            locationManager.removeUpdates( locationListener )
-            registerLowAccuracyLocationManager()
-
-
-
-          case HIGH_POWER_USAGE =>
-            locationManager.removeUpdates( locationListener )
-            registerHighAccuracyLocationManager()
-        }
-
-
-      case TRACKING_ID_MESSAGE =>
-        val id = intent.getIntExtra( WS_EXTRA, currentUser.id )
-        currentTrackingUserId = Option( id  )
-        broadcastIntent( TRACKING_ID_MESSAGE ){ _.putExtra( WS_EXTRA, id  ) }
+            case _ =>
+              // TODO: in case of Unsubscrib there is no garanty the server recieve the mesg... if network error occurs client might still be connected to the channel
+              // We should find to have a better underlying delivery system
+              client.send( msg )
+          }
 
 
 
-      // default start (usually when activity restart)
-      case _ =>
-        broadcast( USER_MESSAGE, currentUser )
-        broadcast( CHANNEL_MESSAGE, currentChannel )
-        susbscribeds.foreach( broadcast( WS_MESSAGE, _ ) )
-        publisheds.foreach( broadcast( WS_MESSAGE, _ ) )
-        currentTrackingUserId.foreach( id => broadcastIntent( TRACKING_ID_MESSAGE ){ _.putExtra( WS_EXTRA, id  ) } )
+        case BACKGROUND_POLICY_MESSAGE =>
+          intent.getIntExtra( WS_EXTRA, LOW_POWER_USAGE ) match {
+            case LOW_POWER_USAGE =>
+              locationManager.removeUpdates( locationListener )
+              registerLowAccuracyLocationManager()
+
+
+
+            case HIGH_POWER_USAGE =>
+              locationManager.removeUpdates( locationListener )
+              registerHighAccuracyLocationManager()
+          }
+
+
+        case TRACKING_ID_MESSAGE =>
+          val id = intent.getIntExtra( WS_EXTRA, currentUser.id )
+          currentTrackingUserId = Option( id  )
+          broadcastIntent( TRACKING_ID_MESSAGE ){ _.putExtra( WS_EXTRA, id  ) }
+
+/*
+        case SettingsActivity.PREFS_REDUCED_GPS_AFTER | SettingsActivity.PREFS_REDUCED_GPS_ACCURACY | SettingsActivity.PREFS_DISCONNECT_TIMEOUT =>
+*/
+
+        // default start (usually when activity restart)
+        case _ =>
+          broadcast( USER_MESSAGE, currentUser )
+          broadcast( CHANNEL_MESSAGE, currentChannel )
+          susbscribeds.foreach( broadcast( WS_MESSAGE, _ ) )
+          publisheds.foreach( broadcast( WS_MESSAGE, _ ) )
+          currentTrackingUserId.foreach( id => broadcastIntent( TRACKING_ID_MESSAGE ){ _.putExtra( WS_EXTRA, id  ) } )
+      }
     }
-
     Service.START_STICKY
   }
 
@@ -400,6 +418,7 @@ class MainService extends Service with RunningStateAware {
     currentSession = sharedPreferences.getString( PREFS_SESSION, "" )
     currentChannel = sharedPreferences.getString( PREFS_CHANNEL_NAME, getString( R.string.channel_tap_to_change ) )
     currentUser = loadUser()
+
 
     showNotiticationBar()
     startLocation()
