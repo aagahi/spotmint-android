@@ -14,7 +14,7 @@ import android.content.Context
 
 trait Users {
   final var users = List[User]()
-  final var currentUserId = 0
+  final var currentUserId = -1
 
   def currentUser = userById( currentUserId )
   def userById( id:Int ) = users.find( _.id == id )
@@ -99,16 +99,14 @@ case class User(id: Int, name: String, email: String, status: String, coord: Coo
    ( now - timestamp ) / 1000
   }
 
-
   def upadtePositionString(implicit context:Context ) = {
     val sec = updatePositionSinceSec
-    if( sec == 0L ) context.getString( R.string.callout_not_moving )
+    if( sec == 0L ) context.getString( R.string.callout_now )
     else if( sec < 60L ) context.getString( R.string.callout_sec_ago ) format sec
     else if( sec/60 < 60L ) context.getString( R.string.callout_min_ago ) format (sec/60)
     else context.getString( R.string.callout_long_time_ago )
   }
 }
-
 
 
 

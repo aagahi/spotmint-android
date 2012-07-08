@@ -36,7 +36,6 @@ object MainService {
 
   final val PREFS_CHANNEL_NAME = "channel"
 
-  final val PREFS_USER_ID = "user.id"
   final val PREFS_USER_NAME = "user.name"
   final val PREFS_USER_EMAIL = "user.email"
   final val PREFS_USER_STATUS = "user.status"
@@ -64,7 +63,7 @@ class MainService extends Service with RunningStateAware {
   // Pref
   // ------------------------------------------------------------
   private def loadUser():User = {
-    User( sharedPreferences.getInt( PREFS_USER_ID, 0 ),
+    User( -1,
       sharedPreferences.getString( PREFS_USER_NAME, "Anonymous-" + (100 + Random.nextInt(899)) ),
       sharedPreferences.getString( PREFS_USER_EMAIL, "" ),
       sharedPreferences.getString( PREFS_USER_STATUS, "available" ),
@@ -72,7 +71,6 @@ class MainService extends Service with RunningStateAware {
   }
   private def saveUser( user:User ) {
     val editor = sharedPreferences.edit()
-    editor.putInt( PREFS_USER_ID, user.id )
     editor.putString( PREFS_USER_NAME, user.name )
     editor.putString( PREFS_USER_EMAIL, user.email )
     editor.putString( PREFS_USER_STATUS, user.status )
@@ -93,9 +91,9 @@ class MainService extends Service with RunningStateAware {
   // ------------------------------------------------------------
   // Settings
   // ------------------------------------------------------------
-  def reducedGPSAfter = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_AFTER, "5" ).toInt
-  def reducedGPSAccuracy = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_ACCURACY, "10" ).toInt
-  def disconnectTimeout = settings.getString(SettingsActivity.PREFS_DISCONNECT_TIMEOUT, "60" ).toInt
+  def reducedGPSAfterMinutes = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_AFTER, "5" ).toInt
+  def reducedGPSAccuracyMeters = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_ACCURACY, "10" ).toInt
+  def disconnectTimeoutMinutes = settings.getString(SettingsActivity.PREFS_DISCONNECT_TIMEOUT, "60" ).toInt
 
   // ------------------------------------------------------------
   // WS Client
@@ -138,7 +136,6 @@ class MainService extends Service with RunningStateAware {
               case subscribedChannel:SubscribedChannel =>
                 if( subscribedChannel.data.isEmpty ){
                   currentUser = currentUser.update( subscribedChannel.pubId )
-                  saveUser( currentUser )
                 }
                 susbscribeds = subscribedChannel :: susbscribeds
 
@@ -267,7 +264,7 @@ class MainService extends Service with RunningStateAware {
       currentUser = currentUser.update( coord )
     }
 
-    registerLowAccuracyLocationManager()
+    locationAccuracyHandler.switchHighAccuracy()
 
     locationTimer.schedule( new TimerTask {
       def run() { client.send( Publish( currentChannel, currentUser.coord ) ) }
@@ -279,17 +276,72 @@ class MainService extends Service with RunningStateAware {
     locationTimer.cancel()
   }
 
-  @inline private def registerHighAccuracyLocationManager(){
-    Log.v(TAG, "High Accurracy Location"  )
-    locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 0, 5, locationListener )
-    locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 10*1000, 10, locationListener )
+
+  val locationAccuracyHandler = new Handler() {
+    final val HIGH_ACCURACY = 1
+    final val LOW_ACCURACY = 2
+
+    def switchHighAccuracy(){
+      sendMessage(obtainMessage( HIGH_ACCURACY ) )
+    }
+    def switchLowAccuracy(){
+      sendMessage(obtainMessage( LOW_ACCURACY ) )
+    }
+
+    override def handleMessage( message:Message ){
+      message.what match {
+        case HIGH_ACCURACY =>
+          Log.v(TAG, "High Accurracy Location"  )
+          locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 0, 5, locationListener )
+
+        case LOW_ACCURACY =>
+          Log.v(TAG, "Low Accurracy Location"  )
+          val accMeters = reducedGPSAccuracyMeters
+          if( accMeters <= 100 ){
+            locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 10*1000, reducedGPSAccuracyMeters, locationListener )
+          }
+          else {
+            locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 10*1000, reducedGPSAccuracyMeters, locationListener )
+          }
+      }
+    }
   }
 
-  @inline private def registerLowAccuracyLocationManager(){
-    Log.v(TAG, "Low Accurracy Location"  )
-    locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 10*1000, 10, locationListener )
+
+  var lowPowerTimer:Timer = _
+  var disconnectTimer:Timer = _
+
+  @inline private def lowPowerLocationManagement(){
+    lowPowerTimer = new Timer()
+    lowPowerTimer.schedule( new TimerTask {
+      def run() {
+        locationManager.removeUpdates( locationListener )
+        locationAccuracyHandler.switchLowAccuracy()
+      }
+    }, reducedGPSAfterMinutes*60*1000 )
+
+    disconnectTimer = new Timer()
+    disconnectTimer.schedule( new TimerTask {
+      def run() {
+        showAutoDisconnectNotitication()
+        stopSelf()
+      }
+    }, disconnectTimeoutMinutes*60*1000 )
+
   }
 
+  @inline private def highPowerLocationManagement(){
+    if( lowPowerTimer != null ) {
+      lowPowerTimer.cancel()
+      lowPowerTimer.purge()
+    }
+    if ( disconnectTimer != null ){
+      disconnectTimer.cancel()
+      disconnectTimer.purge()
+    }
+    locationManager.removeUpdates( locationListener )
+    locationAccuracyHandler.switchHighAccuracy()
+  }
 
   // ------------------------------------------------------------
   // Broadcast MGMT
@@ -314,24 +366,42 @@ class MainService extends Service with RunningStateAware {
   // Notification bar
   // ------------------------------------------------------------
   val SPOTMINT_NOTIFICATION_ID = 1
+  val SPOTMINT_AUTODISCONNECT_ID = 2
 
-  private def showNotiticationBar(){
-
+  private def notifyMessage(id:Int, msg:String )( f: Notification => Notification ){
     val tickerText = getString( R.string.notification_ticker )
-    val when = System.currentTimeMillis();
-
-    val notification = new Notification( R.drawable.notification, tickerText, when )
+    val when = System.currentTimeMillis()
 
     val contentTitle = getString( R.string.notification_title )
-    val contentText = getString( R.string.notification_text ) format ( "#" + currentChannel )
+    val contentText = msg
     val notificationIntent = new Intent(this, classOf[MainActivity])
     val contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
 
-    notification.flags |= Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR
+    val notification = f( new Notification( R.drawable.notification, tickerText, when ) )
 
     notification.setLatestEventInfo( getApplicationContext(), contentTitle, contentText, contentIntent)
 
-    getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager].notify(SPOTMINT_NOTIFICATION_ID, notification)
+    getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager].notify(id, notification)
+  }
+
+  private def showBroadcastNotitication(){
+    val msg = getString( R.string.notification_text ) format ( "#" + currentChannel )
+    notifyMessage( SPOTMINT_NOTIFICATION_ID, msg  ){ notification =>
+      notification.flags = Notification.FLAG_ONGOING_EVENT | Notification.FLAG_NO_CLEAR
+      notification
+    }
+  }
+
+  private def showAutoDisconnectNotitication(){
+    val msg = getString( R.string.notification_autodisconnect_text ) format ( disconnectTimeoutMinutes )
+    notifyMessage( SPOTMINT_AUTODISCONNECT_ID, msg ){ notification =>
+      notification.vibrate = Array(100L, 200L, 100L, 500L)
+      notification.flags = Notification.FLAG_AUTO_CANCEL | Notification.FLAG_SHOW_LIGHTS
+      notification.ledARGB =  0xff00ff00
+      notification.ledOnMS = 300
+      notification.ledOffMS = 5000
+      notification
+    }
   }
 
   private def removeNotificationBar(){
@@ -360,7 +430,7 @@ class MainService extends Service with RunningStateAware {
                 clearChannel()
                 saveChannel()
                 broadcast( CHANNEL_MESSAGE, currentChannel )
-                showNotiticationBar()
+                showBroadcastNotitication()
                 client.send( msg )
                 client.send( Publish( currentChannel, currentUser.coord ) )
               }
@@ -376,15 +446,8 @@ class MainService extends Service with RunningStateAware {
 
         case BACKGROUND_POLICY_MESSAGE =>
           intent.getIntExtra( WS_EXTRA, LOW_POWER_USAGE ) match {
-            case LOW_POWER_USAGE =>
-              locationManager.removeUpdates( locationListener )
-              registerLowAccuracyLocationManager()
-
-
-
-            case HIGH_POWER_USAGE =>
-              locationManager.removeUpdates( locationListener )
-              registerHighAccuracyLocationManager()
+            case LOW_POWER_USAGE => lowPowerLocationManagement()
+            case HIGH_POWER_USAGE => highPowerLocationManagement()
           }
 
 
@@ -420,7 +483,7 @@ class MainService extends Service with RunningStateAware {
     currentUser = loadUser()
 
 
-    showNotiticationBar()
+    showBroadcastNotitication()
     startLocation()
     client.connect( nexusURI, Client.ConnectionOption.DEFAULT, Some( ( t:Throwable ) => { Log.v("SpotMint WS", t.getMessage, t ) } ) )
 

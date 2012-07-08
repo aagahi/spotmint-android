@@ -129,7 +129,7 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         case MainService.WS_MESSAGE =>
           extra match {
             case SubscribedChannel( channel, pubId, None ) =>
-              userById( currentUserId ).foreach{ user =>
+              currentUser.foreach{ user =>
                 replaceUserBy( user, user.update( pubId ) )
                 currentUserId = pubId
               }
@@ -430,15 +430,13 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   private def updateProfile( pw:PopupWindow, v:TypedViewHolder ){
 
     currentUser.foreach{ user =>
-      updateUserOrAppendNew( user.update(  v.findView(TR.profile_name).getText.toString,
-                                           v.findView(TR.profile_email).getText.toString,
-                                           v.findView(TR.profile_status).getText.toString )
-      )
-    }
+      val newUser = user.update(  v.findView(TR.profile_name).getText.toString,
+        v.findView(TR.profile_email).getText.toString,
+        v.findView(TR.profile_status).getText.toString )
+      replaceUserBy( user, newUser )
 
-    currentUser.foreach{ user =>
-      sendWSMessageToService( PublisherUpdate( user.publisher ) )
-      overlay.clearUserBitmap( user )
+      sendWSMessageToService( PublisherUpdate( newUser.publisher ) )
+      overlay.clearUserBitmap( newUser )
       updateUI()
     }
 
@@ -511,7 +509,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
         true
 
-        
       // ------------------------------------------------------------
       case R.id.menu_settings =>
         val settingsActivity = new Intent( getBaseContext(), classOf[SettingsActivity] )
@@ -524,7 +521,13 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         shareIntent.setType("text/plain")
         val currentChannel = findView(TR.channel_button).getText
         shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format currentChannel )
-        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( currentChannel, currentUserId, currentChannel, currentUserId ) )
+
+        val browserURL = if( currentUserId >= 0 ) "http://spotmint/%s/%d" format( currentChannel, currentUserId )
+                         else "http://spotmint/%s" format currentChannel
+        val mobileURL = if( currentUserId >= 0 ) "spotmint://%s/%d" format( currentChannel, currentUserId )
+                        else "spotmint://%s" format currentChannel
+
+        shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( browserURL, mobileURL ) )
         context.startActivity(shareIntent)
         true
 
@@ -539,7 +542,6 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         sendBroadcast( new Intent( MainActivity.KILL_MESSAGE ) )
 
         true
-
 
       case _ => false
     }

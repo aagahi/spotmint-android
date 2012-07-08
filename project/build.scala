@@ -23,7 +23,7 @@ object General {
   )
 
   val proguardSettings = Seq (
-    useProguard in Android := false
+    useProguard in Android := true
   )
 
   lazy val fullAndroidSettings =
