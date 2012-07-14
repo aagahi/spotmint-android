@@ -12,7 +12,6 @@ import android.app.{NotificationManager, PendingIntent, Notification, Service}
 import android.location.{Location, LocationListener, LocationManager}
 import java.util.{Timer, TimerTask}
 import android.os.{Message, Handler, Bundle, Binder}
-import android.widget.Toast
 
 
 object MainService {
@@ -285,6 +284,7 @@ class MainService extends Service with RunningStateAware {
         case HIGH_ACCURACY =>
           Log.v(TAG, "High Accurracy Location"  )
           locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 0, 5, locationListener )
+          locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 30*1000, 0, locationListener )
 
         case LOW_ACCURACY =>
           Log.v(TAG, "Low Accurracy Location"  )
@@ -292,9 +292,7 @@ class MainService extends Service with RunningStateAware {
           if( accMeters <= 100 ){
             locationManager.requestLocationUpdates( LocationManager.GPS_PROVIDER, 10*1000, reducedGPSAccuracyMeters, locationListener )
           }
-          else {
-            locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 30*1000, reducedGPSAccuracyMeters, locationListener )
-          }
+          locationManager.requestLocationUpdates( LocationManager.NETWORK_PROVIDER, 30*1000, reducedGPSAccuracyMeters, locationListener )
       }
     }
   }
@@ -360,17 +358,15 @@ class MainService extends Service with RunningStateAware {
   val SPOTMINT_NOTIFICATION_ID = 1
   val SPOTMINT_AUTODISCONNECT_ID = 2
 
-  private def notifyMessage(id:Int, msg:String )( f: Notification => Notification ){
+  private def notifyMessage(id:Int, contentText:String )( f: Notification => Notification ){
     val tickerText = getString( R.string.notification_ticker )
     val when = System.currentTimeMillis()
 
     val contentTitle = getString( R.string.notification_title )
-    val contentText = msg
-    val notificationIntent = new Intent(this, classOf[MainActivity])
-    val contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
-
     val notification = f( new Notification( R.drawable.notification, tickerText, when ) )
 
+    val notificationIntent = new Intent(this, classOf[MainActivity])
+    val contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0)
     notification.setLatestEventInfo( getApplicationContext(), contentTitle, contentText, contentIntent)
 
     getSystemService(Context.NOTIFICATION_SERVICE).asInstanceOf[NotificationManager].notify(id, notification)
@@ -482,7 +478,7 @@ class MainService extends Service with RunningStateAware {
 
   }
 
-  
+
   override def onDestroy(){
     super.onDestroy()
     client.send( UnsubscribChannel( currentChannel ) )

@@ -108,8 +108,6 @@ case class User(id: Int, name: String, email: String, status: String, coord: Coo
   }
 }
 
-
-
 // ------------------------------------------------------------
 // ------------------------------------------------------------
 
@@ -126,6 +124,7 @@ object Coordinate {
     else NO_COORDINATE
 
 }
+
 
 case class Coordinate(lat: Double, lng: Double, acc: Double, alt: Option[Double], altAcc: Option[Double], heading: Option[Double], speed: Option[Double]) extends Serializable {
   def isUndefined = lat == 0 && lng == 0

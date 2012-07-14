@@ -128,16 +128,17 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
       intent.getAction match {
         case MainService.WS_MESSAGE =>
           extra match {
-            case SubscribedChannel( channel, pubId, None ) =>
+            case SubscribedChannel( channel, pubId, Some(publisher)) =>
+              updatePublisherByIdOrAppendNew( pubId, publisher )
+              updateUI()
+
+            case SubscribedChannel( channel, pubId, _ ) =>
               currentUser.foreach{ user =>
                 replaceUserBy( user, user.update( pubId ) )
                 currentUserId = pubId
               }
               updateUI()
 
-            case SubscribedChannel( channel, pubId, Some(publisher)) =>
-              updatePublisherByIdOrAppendNew( pubId, publisher )
-              updateUI()
 
             case UnsubscribedChannel( _, pubId) =>
               removeById( pubId )
@@ -522,10 +523,13 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
         val currentChannel = findView(TR.channel_button).getText
         shareIntent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.share_subject) format currentChannel )
 
-        val browserURL = if( currentUserId >= 0 ) "http://spotmint/%s/%d" format( currentChannel, currentUserId )
-                         else "http://spotmint/%s" format currentChannel
-        val mobileURL = if( currentUserId >= 0 ) "spotmint://%s/%d" format( currentChannel, currentUserId )
-                        else "spotmint://%s" format currentChannel
+
+        val Array( browserURL, mobileURL )= Array( "http://spotmint.com/%s", "spotmint://%s"  )
+                                            .map{ s =>
+                                              val url = s format currentChannel
+                                              if( currentUserId >= 0 ) url + "/" +currentUserId
+                                              else url
+                                            }
 
         shareIntent.putExtra(Intent.EXTRA_TEXT, getString( R.string.share_text) format ( browserURL, mobileURL ) )
         context.startActivity(shareIntent)

@@ -2,6 +2,7 @@ import sbt._
 
 import Keys._
 import AndroidKeys._
+import scala._
 
 object General {
 
@@ -14,8 +15,8 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "SpotMint",
-    version := "1.0.2",
-    versionCode := 3,
+    version := "1.0.3",
+    versionCode := 4,
     scalaVersion := "2.8.2",
     scalacOptions := Seq("-deprecation", "-encoding", "utf8"),
     platformName in Android := "android-7",
@@ -26,11 +27,16 @@ object General {
     useProguard in Android := true
   )
 
+  val proguardOptim = Seq(
+    proguardOptimizations in Android := Seq( "-dontoptimize", "-verbose", "-keep class scala.*", "-keep class ws.nexus.*", "-keep class com.spotmint.*")
+  )
+
   lazy val fullAndroidSettings =
     General.settings ++
     AndroidProject.androidSettings ++
     TypedResources.settings ++
     proguardSettings ++
+    proguardOptim ++
     AndroidManifestGenerator.settings ++
     AndroidMarketPublish.settings ++ Seq (
       keyalias in Android := "spotmint",
