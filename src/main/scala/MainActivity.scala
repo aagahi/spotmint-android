@@ -19,6 +19,7 @@ import android.graphics.drawable.BitmapDrawable
 import inputmethod.{EditorInfo}
 import android.webkit.WebView
 import android.widget.PopupWindow.OnDismissListener
+import android.app.Activity
 
 
 // ------------------------------------------------------------
@@ -416,10 +417,8 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
   override def onDestroy(){
     Log.v( TAG, "onDestroy -----------------------------------" )
     super.onDestroy();
+    if( state != RunningState.KILLING ) unregisterReceiver( receiver )
     state = RunningState.DYING
-
-    unregisterReceiver( receiver )
-
   }
 
 
@@ -537,13 +536,17 @@ class MainActivity extends MapActivity with TypedActivity with RunningStateAware
 
       // ------------------------------------------------------------
       case R.id.menu_signout =>
-        state = RunningState.DYING
-        val serviceIntent = new Intent( context, classOf[MainService] )
-        val status = stopService( serviceIntent )
-        Log.v( TAG, "Activity has stopped service: " + status )
-
+        unregisterReceiver( receiver )
+        state = RunningState.KILLING
         // Broadcast kill to all activity
-        sendBroadcast( new Intent( MainActivity.KILL_MESSAGE ) )
+        sendOrderedBroadcast( new Intent( MainActivity.KILL_MESSAGE ), null, new BroadcastReceiver {
+          def onReceive(p1: Context, p2: Intent) {
+            val serviceIntent = new Intent( context, classOf[MainService] )
+            val status = stopService( serviceIntent )
+            Log.v( TAG, "Activity has stopped service: " + status )
+            finish()
+          }
+        }, null, Activity.RESULT_OK, null, null)
 
         true
 

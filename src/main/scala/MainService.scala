@@ -56,7 +56,6 @@ class MainService extends Service with RunningStateAware {
   var currentTrackingUserId:Option[Int] = None
 
 
-  lazy val settings = getSharedPreferences( SettingsActivity.PREFS_NAME_KEY, Context.MODE_PRIVATE )
 
   // ------------------------------------------------------------
   // Pref
@@ -90,6 +89,8 @@ class MainService extends Service with RunningStateAware {
   // ------------------------------------------------------------
   // Settings
   // ------------------------------------------------------------
+  lazy val settings = getSharedPreferences( SettingsActivity.PREFS_NAME_KEY, Context.MODE_PRIVATE )
+
   def reducedGPSAfterMinutes = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_AFTER, "5" ).toInt
   def reducedGPSAccuracyMeters = settings.getString(SettingsActivity.PREFS_REDUCED_GPS_ACCURACY, "10" ).toInt
   def disconnectTimeoutMinutes = settings.getString(SettingsActivity.PREFS_DISCONNECT_TIMEOUT, "60" ).toInt

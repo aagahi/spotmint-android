@@ -15,8 +15,8 @@ object General {
 
   val settings = Defaults.defaultSettings ++ Seq (
     name := "SpotMint",
-    version := "1.0.3",
-    versionCode := 4,
+    version := "1.0.4",
+    versionCode := 5,
     scalaVersion := "2.8.2",
     scalacOptions := Seq("-deprecation", "-encoding", "utf8"),
     platformName in Android := "android-7",
@@ -24,7 +24,7 @@ object General {
   )
 
   val proguardSettings = Seq (
-    useProguard in Android := true
+    useProguard in Android := false
   )
 
   val proguardOptim = Seq(

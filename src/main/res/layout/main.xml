@@ -12,10 +12,10 @@
             android:layout_height="fill_parent"
             android:enabled="true"
             android:clickable="true"
-            android:apiKey="0iEa9SuQMLBAXGK3weT8yd9TWf1qNvZ09uJIMww"
+            android:apiKey="0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ"
             />
     <!--
-            android:apiKey="0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ"
+            android:apiKey="0iEa9SuQMLBAXGK3weT8yd9TWf1qNvZ09uJIMww"
                             0iEa9SuQMLBD33GpkzxPUSg7wJgIA76WsqQA5sQ is for debug
     -->
 
